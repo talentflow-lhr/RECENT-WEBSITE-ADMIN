@@ -71,7 +71,7 @@ export default function Companies({ darkMode = false }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Open':
+      case 'Active':
         return 'bg-green-100 text-green-800';
       case 'Closed':
         return 'bg-gray-100 text-gray-800';
@@ -191,7 +191,7 @@ export default function Companies({ darkMode = false }) {
                                     autoFocus
                                     className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none ${getStatusColor(jobOrder.status)}`}
                                   >
-                                    <option value="Open">Open</option>
+                                    <option value="Active">Active</option>
                                     <option value="Closed">Closed</option>
                                     <option value="On Hold">On Hold</option>
                                   </select>

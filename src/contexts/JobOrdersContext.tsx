@@ -13,7 +13,7 @@ export function JobOrdersProvider({ children }) {
       companyContactNumber: '123-456-7890',
       companyRepresentative: 'John Smith',
       pointPersonId: 3,
-      status: 'Open',
+      status: 'Active',
       dateCreated: '2026-01-10',
       deadline: '2026-02-15',
       positions: [
@@ -25,25 +25,29 @@ export function JobOrdersProvider({ children }) {
           requirements: 'Bachelor\'s degree in Computer Science, 3+ years of experience...',
           contractLength: '6 months',
           salaryRange: '$4,000 - $6,000/month',
+          category: 'Engineering',
           applicants: [
             {
               id: 1,
               name: 'John Doe',
               resumeScore: 85,
-              status: 'Shortlist',
+              jobFitScore: 78,
+              status: 'AI-screened',
               appliedDate: '2026-01-15'
             },
             {
               id: 2,
               name: 'Mike Johnson',
               resumeScore: 78,
-              status: 'AI-screened',
+              jobFitScore: 82,
+              status: 'Applied',
               appliedDate: '2026-01-13'
             },
             {
               id: 3,
               name: 'Lisa Anderson',
               resumeScore: 95,
+              jobFitScore: 91,
               status: 'Accepted',
               appliedDate: '2026-01-12'
             }
@@ -57,11 +61,13 @@ export function JobOrdersProvider({ children }) {
           requirements: '5+ years of experience, leadership skills...',
           contractLength: '3 months',
           salaryRange: '$6,000 - $8,000/month',
+          category: 'Engineering',
           applicants: [
             {
               id: 4,
               name: 'Sarah Williams',
               resumeScore: 88,
+              jobFitScore: 85,
               status: 'Scheduled',
               appliedDate: '2026-01-14'
             }
@@ -91,19 +97,22 @@ export function JobOrdersProvider({ children }) {
           requirements: 'Experience in supply chain management...',
           contractLength: '4 months',
           salaryRange: '$5,000 - $7,000/month',
+          category: 'Operations',
           applicants: [
             {
               id: 5,
               name: 'Tom Brown',
               resumeScore: 82,
-              status: 'AI-screened',
+              jobFitScore: 75,
+              status: 'Shortlist',
               appliedDate: '2026-01-16'
             },
             {
               id: 6,
               name: 'Emily Davis',
               resumeScore: 90,
-              status: 'Shortlist',
+              jobFitScore: 88,
+              status: 'Scheduled',
               appliedDate: '2026-01-17'
             }
           ]
@@ -132,11 +141,13 @@ export function JobOrdersProvider({ children }) {
           requirements: 'MBA preferred, 5+ years experience...',
           contractLength: '6 months',
           salaryRange: '$7,000 - $10,000/month',
+          category: 'Product Management',
           applicants: [
             {
               id: 7,
               name: 'Chris Martin',
               resumeScore: 91,
+              jobFitScore: 87,
               status: 'Rejected',
               rejectionReason: 'Position filled',
               appliedDate: '2025-12-05'

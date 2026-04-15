@@ -4,62 +4,25 @@ import { companiesData } from './companiesData';
 import { usersData } from './usersData';
 import { useJobOrders } from '../contexts/JobOrdersContext';
 
-interface Applicant {
-  id: number;
-  name: string;
-  resumeScore: number;
-  status: 'applied' | 'AI-screened' | 'Shortlist' | 'Scheduled' | 'Accepted' | 'Rejected';
-  rejectionReason?: string;
-  appliedDate: string;
-}
-
-interface Position {
-  id: number;
-  title: string;
-  openPositions: number;
-  applicants: Applicant[];
-  description?: string;
-  requirements?: string;
-  contractLength?: string;
-  salaryRange?: string;
-}
-
-interface JobOrder {
-  id: number;
-  jobOrderCode: string;
-  jobOrderNumber: string;
-  referenceNumber?: string;
-  principalCompanyName: string;
-  companyContactNumber?: string;
-  companyRepresentative?: string;
-  country?: string;
-  pointPersonId?: number;
-  status: 'Open' | 'Closed' | 'On Hold';
-  dateCreated: string;
-  deadline: string;
-  positions: Position[];
-}
-
-interface PositionFormData {
-  tempId: number;
-  title: string;
-  description: string;
-  requirements: string;
-  openPositions: number;
-  contractLength: string;
-  salaryRange: string;
-}
-
 export default function JobOrders() {
   const { jobOrders, setJobOrders, updateJobOrderStatus } = useJobOrders();
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('All');
-  const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(null);
-  const [selectedPosition, setSelectedPosition] = useState<{ jobOrder: JobOrder; position: Position } | null>(null);
+  const [filterStatus, setFilterStatus] = useState('All');
+  const [selectedJobOrder, setSelectedJobOrder] = useState(null);
+  const [selectedPosition, setSelectedPosition] = useState(null);
   const [applicantSearchTerm, setApplicantSearchTerm] = useState('');
-  const [applicantFilterStatus, setApplicantFilterStatus] = useState<string>('All');
-  const [applicantScoreSort, setApplicantScoreSort] = useState<string>('none');
-  const [viewMode, setViewMode] = useState<'list' | 'form' | 'positions'>('list');
+  const [applicantFilterStatus, setApplicantFilterStatus] = useState('All');
+  const [applicantScoreSort, setApplicantScoreSort] = useState('none');
+  const [viewMode, setViewMode] = useState('list');
+  const [showAddPositionModal, setShowAddPositionModal] = useState(false);
+  const [newPosition, setNewPosition] = useState({
+    title: '',
+    requirements: '',
+    contractLength: '',
+    openPositions: 1,
+    salaryRange: '',
+    category: ''
+  });
   const [jobOrderForm, setJobOrderForm] = useState({
     referenceNumber: '',
     companyName: '',
@@ -69,17 +32,18 @@ export default function JobOrders() {
     pointPersonId: '',
     deadline: ''
   });
-  const [positions, setPositions] = useState<PositionFormData[]>([]);
-  const [currentPosition, setCurrentPosition] = useState<PositionFormData>({
+  const [positions, setPositions] = useState([]);
+  const [currentPosition, setCurrentPosition] = useState({
     tempId: 0,
     title: '',
     description: '',
     requirements: '',
     openPositions: 1,
     contractLength: '',
-    salaryRange: ''
+    salaryRange: '',
+    category: ''
   });
-  const [editingStatus, setEditingStatus] = useState<number | null>(null);
+  const [editingStatus, setEditingStatus] = useState(null);
 
   /* const [jobOrders, setJobOrders] = useState<JobOrder[]>([
     {
@@ -87,7 +51,7 @@ export default function JobOrders() {
       jobOrderCode: 'JO-2026-001',
       jobOrderNumber: '001',
       principalCompanyName: 'Tech Solutions Inc.',
-      status: 'Open',
+      status: 'Active',
       dateCreated: '2026-01-10',
       deadline: '2026-02-15',
       positions: [
@@ -281,7 +245,7 @@ export default function JobOrders() {
     return matchesSearch && matchesFilter;
   });
 
-  const handleStatusChange = (applicantId: number, newStatus: Applicant['status']) => {
+  const handleStatusChange = (applicantId, newStatus) => {
     if (!selectedPosition) return;
     
     setJobOrders(prev => prev.map(job => ({
@@ -306,9 +270,9 @@ export default function JobOrders() {
     })));
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status) => {
     switch (status) {
-      case 'Open':
+      case 'Active':
         return 'bg-green-100 text-green-800';
       case 'Closed':
         return 'bg-gray-100 text-gray-800';
@@ -319,9 +283,9 @@ export default function JobOrders() {
     }
   };
 
-  const getApplicantStatusColor = (status: string) => {
+  const getApplicantStatusColor = (status) => {
     switch (status) {
-      case 'applied':
+      case 'Applied':
         return 'bg-gray-100 text-gray-800';
       case 'AI-screened':
         return 'bg-blue-100 text-blue-800';
@@ -338,10 +302,54 @@ export default function JobOrders() {
     }
   };
 
-  const getScoreColor = (score: number) => {
+  const getScoreColor = (score) => {
     if (score >= 80) return 'text-green-600 font-bold';
     if (score >= 60) return 'text-yellow-600 font-bold';
     return 'text-red-600 font-bold';
+  };
+
+  const handleAddPosition = () => {
+    if (!newPosition.title || !newPosition.requirements || !newPosition.contractLength || 
+        !newPosition.salaryRange || !newPosition.category || !newPosition.openPositions) {
+      alert('Please fill in all required fields');
+      return;
+    }
+
+    const position = {
+      id: Date.now(),
+      title: newPosition.title,
+      description: newPosition.requirements,
+      requirements: newPosition.requirements,
+      openPositions: parseInt(newPosition.openPositions),
+      contractLength: newPosition.contractLength,
+      salaryRange: newPosition.salaryRange,
+      category: newPosition.category,
+      applicants: []
+    };
+
+    // Update the job order with the new position
+    setJobOrders(jobOrders.map(jo => 
+      jo.id === selectedJobOrder.id 
+        ? { ...jo, positions: [...jo.positions, position] }
+        : jo
+    ));
+
+    // Update selectedJobOrder to reflect the change
+    setSelectedJobOrder({
+      ...selectedJobOrder,
+      positions: [...selectedJobOrder.positions, position]
+    });
+
+    // Reset form and close modal
+    setNewPosition({
+      title: '',
+      requirements: '',
+      contractLength: '',
+      openPositions: 1,
+      salaryRange: '',
+      category: ''
+    });
+    setShowAddPositionModal(false);
   };
 
   const totalJobOrders = jobOrders.length;
@@ -369,7 +377,8 @@ export default function JobOrders() {
       requirements: '',
       openPositions: 1,
       contractLength: '',
-      salaryRange: ''
+      salaryRange: '',
+      category: ''
     });
   };
 
@@ -424,14 +433,14 @@ export default function JobOrders() {
                         <select
                           value={selectedJobOrder.status}
                           onChange={(e) => {
-                            updateJobOrderStatus(selectedJobOrder.id, e.target.value as 'Open' | 'Closed' | 'On Hold');
-                            setSelectedJobOrder({ ...selectedJobOrder, status: e.target.value as 'Open' | 'Closed' | 'On Hold' });
+                            updateJobOrderStatus(selectedJobOrder.id, e.target.value as 'Active' | 'Closed' | 'On Hold');
+                            setSelectedJobOrder({ ...selectedJobOrder, status: e.target.value as 'Active' | 'Closed' | 'On Hold' });
                           }}
                           onBlur={() => setEditingStatus(null)}
                           autoFocus
                           className={`text-sm px-3 py-1 rounded-full border-2 border-blue-500 focus:outline-none font-semibold ${getStatusColor(selectedJobOrder.status)}`}
                         >
-                          <option value="Open">Open</option>
+                          <option value="Active">Active</option>
                           <option value="Closed">Closed</option>
                           <option value="On Hold">On Hold</option>
                         </select>
@@ -486,7 +495,10 @@ export default function JobOrders() {
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Positions</h2>
-              <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+              <button 
+                onClick={() => setShowAddPositionModal(true)}
+                className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+              >
                 <Plus className="w-5 h-5" />
                 <span>Add Position</span>
               </button>
@@ -497,56 +509,56 @@ export default function JobOrders() {
                 <div
                   key={position.id}
                   onClick={() => setSelectedPosition({ jobOrder: selectedJobOrder, position })}
-                  className="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-green-400 transition-all cursor-pointer overflow-hidden"
+                  className="bg-white rounded-2xl border-2 border-green-500 shadow-lg hover:shadow-xl hover:border-green-600 transition-all cursor-pointer p-5"
                 >
-                  <div className="p-6">
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Users className="w-6 h-6 text-blue-600" />
-                      </div>
-                      <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                        position.openPositions > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {position.openPositions} Open
-                      </span>
+                  {/* Icon and Status Badge */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
+                      <Users className="w-7 h-7 text-blue-600" />
                     </div>
-                    
-                    <h3 className="text-xl font-bold text-gray-900 mb-2">{position.title}</h3>
-                    
-                    {position.description && (
-                      <p className="text-sm text-gray-600 mb-4 line-clamp-2">{position.description}</p>
+                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                      position.openPositions > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {position.openPositions} Open
+                    </span>
+                  </div>
+                  
+                  {/* Job Title */}
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">{position.title}</h3>
+                  
+                  {/* Job Description */}
+                  {position.description && (
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{position.description}</p>
+                  )}
+
+                  {/* Contract & Salary */}
+                  <div className="space-y-1 mb-4">
+                    {position.contractLength && (
+                      <p className="text-sm">
+                        <span className="text-gray-500">Contract:</span> <span className="text-gray-900 font-medium">{position.contractLength}</span>
+                      </p>
                     )}
+                    {position.salaryRange && (
+                      <p className="text-sm">
+                        <span className="text-gray-500">Salary:</span> <span className="text-gray-900 font-medium">{position.salaryRange}</span>
+                      </p>
+                    )}
+                  </div>
 
-                    {/* Contract Length and Salary Range */}
-                    <div className="space-y-2 mb-4">
-                      {position.contractLength && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-medium text-gray-500">Contract:</span>
-                          <span className="text-sm text-gray-900">{position.contractLength}</span>
-                        </div>
-                      )}
-                      {position.salaryRange && (
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-medium text-gray-500">Salary:</span>
-                          <span className="text-sm text-gray-900">{position.salaryRange}</span>
-                        </div>
-                      )}
+                  {/* Applicants Stats */}
+                  <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                    <div>
+                      <p className="text-xs text-gray-500">Applicants</p>
+                      <p className="text-2xl font-bold text-gray-900">{position.applicants.length}</p>
                     </div>
-
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <div className="flex items-center space-x-4">
-                        <div>
-                          <p className="text-xs text-gray-500">Applicants</p>
-                          <p className="text-lg font-bold text-gray-900">{position.applicants.length}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-500">Shortlisted</p>
-                          <p className="text-lg font-bold text-purple-600">
-                            {position.applicants.filter(a => a.status === 'Shortlist').length}
-                          </p>
-                        </div>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
+                    <div>
+                      <p className="text-xs text-gray-500">Shortlisted</p>
+                      <p className="text-2xl font-bold text-purple-600">
+                        {position.applicants.filter(a => a.status === 'Evaluated').length}
+                      </p>
+                    </div>
+                    <div className="text-gray-300">
+                      <ChevronRight className="w-5 h-5" />
                     </div>
                   </div>
                 </div>
@@ -557,7 +569,7 @@ export default function JobOrders() {
 
         {/* Applicants Modal - Render when position is selected */}
         {selectedPosition && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
               {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -612,7 +624,7 @@ export default function JobOrders() {
 
               {/* Applicants Stats */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
-                {['applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
+                {['Applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
                   const count = selectedPosition.position.applicants.filter(a => a.status === status).length;
                   return (
                     <div key={status} className="bg-white rounded-lg shadow-sm p-3">
@@ -669,9 +681,8 @@ export default function JobOrders() {
                       className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
                     >
                       <option value="All">All Status</option>
-                      <option value="applied">applied</option>
-                      <option value="AI-screened">AI-screened</option>
-                      <option value="Shortlist">Shortlist</option>
+                      <option value="Not evaluated">Not evaluated</option>
+                      <option value="Evaluated">Evaluated</option>
                       <option value="Scheduled">Scheduled</option>
                       <option value="Accepted">Accepted</option>
                       <option value="Rejected">Rejected</option>
@@ -700,6 +711,9 @@ export default function JobOrders() {
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Resume Score
+                        </th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                          Job Fit Score
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
@@ -731,7 +745,7 @@ export default function JobOrders() {
                         if (filteredApplicants.length === 0) {
                           return (
                             <tr>
-                              <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                                 No applicants found
                               </td>
                             </tr>
@@ -756,12 +770,17 @@ export default function JobOrders() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
+                              <div className={`text-sm ${getScoreColor(applicant.jobFitScore || 0)}`}>
+                                {applicant.jobFitScore || 0}%
+                              </div>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap">
                               <select
                                 value={applicant.status}
-                                onChange={(e) => handleStatusChange(applicant.id, e.target.value as Applicant['status'])}
+                                onChange={(e) => handleStatusChange(applicant.id, e.target.value)}
                                 className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.status)}`}
                               >
-                                <option value="applied">applied</option>
+                                <option value="Applied">Applied</option>
                                 <option value="AI-screened">AI-screened</option>
                                 <option value="Shortlist">Shortlist</option>
                                 <option value="Scheduled">Scheduled</option>
@@ -819,6 +838,155 @@ export default function JobOrders() {
                     Export Applicants
                   </button>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Position Modal */}
+        {showAddPositionModal && (
+          <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
+                <h2 className="text-2xl font-bold text-gray-900">Add New Position</h2>
+                <button
+                  onClick={() => {
+                    setShowAddPositionModal(false);
+                    setNewPosition({
+                      title: '',
+                      requirements: '',
+                      contractLength: '',
+                      openPositions: 1,
+                      salaryRange: '',
+                      category: ''
+                    });
+                  }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 space-y-5">
+                {/* Job Title */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Title <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPosition.title}
+                    onChange={(e) => setNewPosition({ ...newPosition, title: e.target.value })}
+                    placeholder="e.g., Software Engineer, Construction Worker"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Job Category */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={newPosition.category}
+                    onChange={(e) => setNewPosition({ ...newPosition, category: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="">Select a category</option>
+                    <option value="Construction">Construction</option>
+                    <option value="Healthcare">Healthcare</option>
+                    <option value="Hospitality">Hospitality</option>
+                    <option value="Manufacturing">Manufacturing</option>
+                    <option value="Technology">Technology</option>
+                    <option value="Agriculture">Agriculture</option>
+                    <option value="Transportation">Transportation</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+
+                {/* Job Requirements */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Job Requirements <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    value={newPosition.requirements}
+                    onChange={(e) => setNewPosition({ ...newPosition, requirements: e.target.value })}
+                    placeholder="Enter job requirements and qualifications..."
+                    rows={4}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Contract Length */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Contract Length <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPosition.contractLength}
+                    onChange={(e) => setNewPosition({ ...newPosition, contractLength: e.target.value })}
+                    placeholder="e.g., 3 months, 6 months"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Number of Applicants Needed */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Number of Applicants Needed <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={newPosition.openPositions}
+                    onChange={(e) => setNewPosition({ ...newPosition, openPositions: e.target.value })}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+
+                {/* Salary Range */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Salary Range <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newPosition.salaryRange}
+                    onChange={(e) => setNewPosition({ ...newPosition, salaryRange: e.target.value })}
+                    placeholder="e.g., $15-20/hour, ₱500-800/day"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => {
+                    setShowAddPositionModal(false);
+                    setNewPosition({
+                      title: '',
+                      requirements: '',
+                      contractLength: '',
+                      openPositions: 1,
+                      salaryRange: '',
+                      category: ''
+                    });
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleAddPosition}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                  Add Position
+                </button>
               </div>
             </div>
           </div>
@@ -978,37 +1146,58 @@ export default function JobOrders() {
               {positions.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                   <div className="bg-blue-50 border-l-4 border-blue-600 p-5 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-3">Added Positions ({positions.length})</h3>
-                    <div className="space-y-3 max-h-[500px] overflow-y-auto">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Added Positions ({positions.length})</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
                       {positions.map((pos) => (
-                        <div key={pos.tempId} className="bg-white rounded-lg p-4 border border-blue-200 shadow-sm">
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1 pr-4">
-                              <p className="font-semibold text-gray-900 text-base">{pos.title}</p>
-                              <p className="text-sm text-gray-600 mt-1">
-                                {pos.openPositions} open position{pos.openPositions !== 1 ? 's' : ''}
-                              </p>
-                              <div className="flex items-center space-x-4 mt-1">
-                                {pos.contractLength && (
-                                  <p className="text-xs text-gray-600">
-                                    <span className="font-medium">Contract:</span> {pos.contractLength}
-                                  </p>
-                                )}
-                                {pos.salaryRange && (
-                                  <p className="text-xs text-gray-600">
-                                    <span className="font-medium">Salary:</span> {pos.salaryRange}
-                                  </p>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-500 mt-2 line-clamp-2">{pos.description}</p>
+                        <div key={pos.tempId} className="bg-white rounded-2xl border-2 border-green-500 shadow-lg p-5 relative">
+                          {/* Icon and Status Badge */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
+                              <Users className="w-7 h-7 text-blue-600" />
                             </div>
-                            <button
-                              onClick={() => setPositions(positions.filter(p => p.tempId !== pos.tempId))}
-                              className="text-red-600 hover:text-red-800 transition-colors flex-shrink-0"
-                              title="Remove position"
-                            >
-                              <Trash2 className="w-5 h-5" />
-                            </button>
+                            <div className="flex items-center gap-2">
+                              <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
+                                {pos.openPositions} Open
+                              </span>
+                              <button
+                                onClick={() => setPositions(positions.filter(p => p.tempId !== pos.tempId))}
+                                className="text-red-600 hover:text-red-800 transition-colors"
+                                title="Remove position"
+                              >
+                                <Trash2 className="w-5 h-5" />
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Job Title */}
+                          <h4 className="text-xl font-bold text-gray-900 mb-2">{pos.title}</h4>
+
+                          {/* Job Description */}
+                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{pos.description}</p>
+
+                          {/* Contract & Salary */}
+                          <div className="space-y-1 mb-4">
+                            <p className="text-sm">
+                              <span className="text-gray-500">Contract:</span> <span className="text-gray-900 font-medium">{pos.contractLength}</span>
+                            </p>
+                            <p className="text-sm">
+                              <span className="text-gray-500">Salary:</span> <span className="text-gray-900 font-medium">{pos.salaryRange}</span>
+                            </p>
+                          </div>
+
+                          {/* Applicants Stats */}
+                          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                            <div>
+                              <p className="text-xs text-gray-500">Applicants</p>
+                              <p className="text-2xl font-bold text-gray-900">0</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-gray-500">Shortlisted</p>
+                              <p className="text-2xl font-bold text-purple-600">0</p>
+                            </div>
+                            <div className="text-gray-300">
+                              <ChevronRight className="w-5 h-5" />
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -1108,11 +1297,35 @@ export default function JobOrders() {
                     />
                   </div>
 
+                  {/* Job Category */}
+                  <div className="mb-4">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Job Category <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={currentPosition.category}
+                      onChange={(e) => setCurrentPosition({ ...currentPosition, category: e.target.value })}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
+                    >
+                      <option value="">Select a category</option>
+                      <option value="Engineering">Engineering</option>
+                      <option value="Design">Design</option>
+                      <option value="Marketing">Marketing</option>
+                      <option value="Sales">Sales</option>
+                      <option value="Operations">Operations</option>
+                      <option value="Finance">Finance</option>
+                      <option value="Human Resources">Human Resources</option>
+                      <option value="Customer Support">Customer Support</option>
+                      <option value="Product Management">Product Management</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
                   {/* Add Position Button */}
                   <button
                     onClick={() => {
                       // Validate position fields
-                      if (!currentPosition.title || !currentPosition.description || !currentPosition.requirements || !currentPosition.contractLength || !currentPosition.salaryRange) {
+                      if (!currentPosition.title || !currentPosition.description || !currentPosition.requirements || !currentPosition.contractLength || !currentPosition.salaryRange || !currentPosition.category) {
                         alert('Please fill in all position fields');
                         return;
                       }
@@ -1307,14 +1520,14 @@ export default function JobOrders() {
                             value={jobOrder.status}
                             onChange={(e) => {
                               e.stopPropagation();
-                              updateJobOrderStatus(jobOrder.id, e.target.value as 'Open' | 'Closed' | 'On Hold');
+                              updateJobOrderStatus(jobOrder.id, e.target.value as 'Active' | 'Closed' | 'On Hold');
                             }}
                             onClick={(e) => e.stopPropagation()}
                             onBlur={() => setEditingStatus(null)}
                             autoFocus
                             className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none ${getStatusColor(jobOrder.status)}`}
                           >
-                            <option value="Open">Open</option>
+                            <option value="Active">Active</option>
                             <option value="Closed">Closed</option>
                             <option value="On Hold">On Hold</option>
                           </select>
@@ -1368,7 +1581,7 @@ export default function JobOrders() {
 
       {/* Applicants Full Screen Modal */}
       {selectedPosition && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-6 border-b border-gray-200">
@@ -1403,7 +1616,7 @@ export default function JobOrders() {
 
             {/* Applicants Stats */}
             <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
-              {['applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
+              {['Applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
                 const count = selectedPosition.position.applicants.filter(a => a.status === status).length;
                 return (
                   <div key={status} className="bg-white rounded-lg shadow-sm p-3">
@@ -1493,6 +1706,9 @@ export default function JobOrders() {
                         Resume Score
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Job Fit Score
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -1522,7 +1738,7 @@ export default function JobOrders() {
                       if (filteredApplicants.length === 0) {
                         return (
                           <tr>
-                            <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
                               No applicants found
                             </td>
                           </tr>
@@ -1547,12 +1763,17 @@ export default function JobOrders() {
                             </div>
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap">
+                            <div className={`text-sm ${getScoreColor(applicant.jobFitScore || 0)}`}>
+                              {applicant.jobFitScore || 0}%
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
                             <select
                               value={applicant.status}
-                              onChange={(e) => handleStatusChange(applicant.id, e.target.value as Applicant['status'])}
+                              onChange={(e) => handleStatusChange(applicant.id, e.target.value)}
                               className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.status)}`}
                             >
-                              <option value="applied">applied</option>
+                              <option value="Applied">Applied</option>
                               <option value="AI-screened">AI-screened</option>
                               <option value="Shortlist">Shortlist</option>
                               <option value="Scheduled">Scheduled</option>
