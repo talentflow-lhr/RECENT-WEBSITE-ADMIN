@@ -1,391 +1,573 @@
-import React, { useState } from 'react';
-import { Search, Download, Filter, Plus, ChevronDown, ChevronRight, Briefcase, Users, X, Trash2, ArrowLeft } from 'lucide-react';
-import { companiesData } from './companiesData';
-import { usersData } from './usersData';
-import { useJobOrders } from '../contexts/JobOrdersContext';
+import React, { useState, useEffect } from "react";
+import {
+  Search,
+  Download,
+  Filter,
+  Plus,
+  ChevronDown,
+  ChevronRight,
+  Briefcase,
+  Users,
+  X,
+  Trash2,
+  ArrowLeft,
+} from "lucide-react";
+import { supabase } from "./supabaseClient";
 
-export default function JobOrders() {
-  const { jobOrders, setJobOrders, updateJobOrderStatus } = useJobOrders();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('All');
-  const [selectedJobOrder, setSelectedJobOrder] = useState(null);
-  const [selectedPosition, setSelectedPosition] = useState(null);
-  const [applicantSearchTerm, setApplicantSearchTerm] = useState('');
-  const [applicantFilterStatus, setApplicantFilterStatus] = useState('All');
-  const [applicantScoreSort, setApplicantScoreSort] = useState('none');
-  const [viewMode, setViewMode] = useState('list');
+interface Applicant {
+  application_id: number;
+  app_first_name: string;
+  app_last_name: string;
+  resume_score: number;
+  job_fit_score: number;
+  application_current_status: string;
+  applied_date: string;
+}
+
+interface Position {
+  position_id: number;
+  job_title: string;
+  job_description: string;
+  job_requirements: string[];
+  job_contract_length: string;
+  job_number_needed: number;
+  job_salary_range: string;
+  job_category: string;
+  is_active: boolean;
+  applicants: Applicant[];
+}
+
+interface JobOrder {
+  jo_id: number;
+  jo_reference_number: string;
+  is_active: boolean;
+  is_posted: boolean;
+  jo_posted_date: string;
+  jo_deadline: string;
+  jo_country: string;
+  company_id: number;
+  company_name: string;
+  company_contact: string;
+  company_representative: string;
+  created_by_name: string;
+  positions: Position[];
+}
+
+interface Company {
+  company_id: number;
+  company_name: string;
+  company_country: string;
+  company_contact: string;
+  company_representative: string;
+}
+
+interface Employee {
+  employee_id: number;
+  employee_first_name: string;
+  employee_last_name: string;
+  employee_is_active: boolean;
+}
+
+export default function JobOrders({
+  darkMode = false,
+}: {
+  darkMode?: boolean;
+}) {
+  const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedJobOrder, setSelectedJobOrder] = useState<JobOrder | null>(
+    null,
+  );
+  const [selectedPosition, setSelectedPosition] = useState<{
+    jobOrder: JobOrder;
+    position: Position;
+  } | null>(null);
+  const [applicantSearchTerm, setApplicantSearchTerm] = useState("");
+  const [applicantFilterStatus, setApplicantFilterStatus] = useState("All");
+  const [applicantScoreSort, setApplicantScoreSort] = useState("none");
+  const [viewMode, setViewMode] = useState<"list" | "positions" | "form">(
+    "list",
+  );
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
-  const [newPosition, setNewPosition] = useState({
-    title: '',
-    requirements: '',
-    contractLength: '',
-    openPositions: 1,
-    salaryRange: '',
-    category: ''
-  });
+  const [saving, setSaving] = useState(false);
+
   const [jobOrderForm, setJobOrderForm] = useState({
-    referenceNumber: '',
-    companyName: '',
-    companyContactNumber: '',
-    companyRepresentative: '',
-    country: '',
-    pointPersonId: '',
-    deadline: ''
+    company_id: "",
+    jo_country: "",
+    jo_reference_number: "",
+    jo_deadline: "",
+    jo_created_by: "",
+    is_active: true,
+    is_posted: false,
   });
-  const [positions, setPositions] = useState([]);
+
+  const [positions, setPositions] = useState<any[]>([]);
   const [currentPosition, setCurrentPosition] = useState({
-    tempId: 0,
-    title: '',
-    description: '',
-    requirements: '',
-    openPositions: 1,
-    contractLength: '',
-    salaryRange: '',
-    category: ''
-  });
-  const [editingStatus, setEditingStatus] = useState(null);
-
-  /* const [jobOrders, setJobOrders] = useState<JobOrder[]>([
-    {
-      id: 1,
-      jobOrderCode: 'JO-2026-001',
-      jobOrderNumber: '001',
-      principalCompanyName: 'Tech Solutions Inc.',
-      status: 'Active',
-      dateCreated: '2026-01-10',
-      deadline: '2026-02-15',
-      positions: [
-        {
-          id: 101,
-          title: 'Software Engineer',
-          openPositions: 3,
-          description: 'We are looking for talented software engineers to join our team...',
-          requirements: 'Bachelor\'s degree in Computer Science, 3+ years of experience...',
-          applicants: [
-            {
-              id: 1,
-              name: 'John Doe',
-              resumeScore: 85,
-              status: 'Shortlist',
-              appliedDate: '2026-01-15'
-            },
-            {
-              id: 2,
-              name: 'Mike Johnson',
-              resumeScore: 78,
-              status: 'AI-screened',
-              appliedDate: '2026-01-13'
-            },
-            {
-              id: 3,
-              name: 'Lisa Anderson',
-              resumeScore: 95,
-              status: 'Scheduled',
-              appliedDate: '2026-01-08'
-            }
-          ]
-        },
-        {
-          id: 102,
-          title: 'Senior Backend Developer',
-          openPositions: 2,
-          description: 'Seeking experienced backend developers for our cloud infrastructure team...',
-          requirements: '5+ years of backend development, proficiency in Node.js, AWS experience...',
-          applicants: [
-            {
-              id: 4,
-              name: 'Robert Chen',
-              resumeScore: 92,
-              status: 'Shortlist',
-              appliedDate: '2026-01-14'
-            },
-            {
-              id: 5,
-              name: 'Maria Garcia',
-              resumeScore: 88,
-              status: 'Accepted',
-              appliedDate: '2026-01-12'
-            }
-          ]
-        },
-        {
-          id: 103,
-          title: 'Frontend Developer',
-          openPositions: 2,
-          description: 'Join our frontend team to build modern web applications...',
-          requirements: 'Strong knowledge of React, TypeScript, 2+ years experience...',
-          applicants: []
-        }
-      ]
-    },
-    {
-      id: 2,
-      jobOrderCode: 'JO-2026-002',
-      jobOrderNumber: '002',
-      principalCompanyName: 'Digital Innovations Ltd.',
-      status: 'Open',
-      dateCreated: '2026-01-08',
-      deadline: '2026-02-20',
-      positions: [
-        {
-          id: 201,
-          title: 'Product Manager',
-          openPositions: 2,
-          description: 'Lead product strategy and roadmap for our flagship products...',
-          requirements: '5+ years product management experience, strong analytical skills...',
-          applicants: [
-            {
-              id: 6,
-              name: 'Jane Smith',
-              resumeScore: 92,
-              status: 'Scheduled',
-              appliedDate: '2026-01-14'
-            },
-            {
-              id: 7,
-              name: 'Emily Davis',
-              resumeScore: 70,
-              status: 'applied',
-              appliedDate: '2026-01-10'
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 3,
-      jobOrderCode: 'JO-2026-003',
-      jobOrderNumber: '003',
-      principalCompanyName: 'Data Analytics Corp.',
-      status: 'On Hold',
-      dateCreated: '2026-01-12',
-      deadline: '2026-02-25',
-      positions: [
-        {
-          id: 301,
-          title: 'Data Analyst',
-          openPositions: 1,
-          description: 'Analyze data and provide insights to drive business decisions...',
-          requirements: '5+ years data analysis experience, SQL, Python, data visualization...',
-          applicants: [
-            {
-              id: 8,
-              name: 'Sarah Williams',
-              resumeScore: 65,
-              status: 'Rejected',
-              rejectionReason: 'Does not meet minimum experience requirements (5+ years required)',
-              appliedDate: '2026-01-12'
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 4,
-      jobOrderCode: 'JO-2026-004',
-      jobOrderNumber: '004',
-      principalCompanyName: 'Cloud Services Group',
-      status: 'Open',
-      dateCreated: '2026-01-15',
-      deadline: '2026-02-22',
-      positions: [
-        {
-          id: 401,
-          title: 'DevOps Engineer',
-          openPositions: 2,
-          description: 'Manage infrastructure and deployment pipelines...',
-          requirements: 'Experience with Docker, Kubernetes, CI/CD, cloud platforms...',
-          applicants: [
-            {
-              id: 9,
-              name: 'David Brown',
-              resumeScore: 88,
-              status: 'Accepted',
-              appliedDate: '2026-01-11'
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: 5,
-      jobOrderCode: 'JO-2026-005',
-      jobOrderNumber: '005',
-      principalCompanyName: 'Creative Design Studio',
-      status: 'Open',
-      dateCreated: '2026-01-09',
-      deadline: '2026-02-18',
-      positions: [
-        {
-          id: 501,
-          title: 'UX Designer',
-          openPositions: 1,
-          description: 'Design user experiences for enterprise applications...',
-          requirements: 'Portfolio demonstrating UX design skills, Figma proficiency...',
-          applicants: [
-            {
-              id: 10,
-              name: 'Robert Miller',
-              resumeScore: 55,
-              status: 'Rejected',
-              rejectionReason: 'Portfolio does not demonstrate required design skills for enterprise applications',
-              appliedDate: '2026-01-09'
-            }
-          ]
-        }
-      ]
-    },
-  ]); */
-
-  const filteredJobOrders = jobOrders.filter(job => {
-    const matchesSearch = job.jobOrderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.principalCompanyName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         job.positions.some(pos => pos.title.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesFilter = filterStatus === 'All' || job.status === filterStatus;
-    return matchesSearch && matchesFilter;
+    job_title: "",
+    job_description: "",
+    job_requirements: "",
+    job_number_needed: 1,
+    job_contract_length: "",
+    job_salary_range: "",
+    job_category: "",
   });
 
-  const handleStatusChange = (applicantId, newStatus) => {
-    if (!selectedPosition) return;
-    
-    setJobOrders(prev => prev.map(job => ({
-      ...job,
-      positions: job.positions.map(pos => {
-        if (pos.id === selectedPosition.position.id) {
-          const updatedPosition = {
-            ...pos,
-            applicants: pos.applicants.map(app =>
-              app.id === applicantId ? { ...app, status: newStatus } : app
-            )
-          };
-          // Update selectedPosition to reflect changes
-          setSelectedPosition({
-            ...selectedPosition,
-            position: updatedPosition
-          });
-          return updatedPosition;
-        }
-        return pos;
-      })
-    })));
-  };
+  const [newPosition, setNewPosition] = useState({
+    job_title: "",
+    job_description: "",
+    job_requirements: "",
+    job_number_needed: 1,
+    job_contract_length: "",
+    job_salary_range: "",
+    job_category: "",
+  });
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Active':
-        return 'bg-green-100 text-green-800';
-      case 'Closed':
-        return 'bg-gray-100 text-gray-800';
-      case 'On Hold':
-        return 'bg-yellow-100 text-yellow-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  useEffect(() => {
+    fetchJobOrders();
+    fetchCompanies();
+    fetchEmployees();
+  }, []);
 
-  const getApplicantStatusColor = (status) => {
-    switch (status) {
-      case 'Applied':
-        return 'bg-gray-100 text-gray-800';
-      case 'AI-screened':
-        return 'bg-blue-100 text-blue-800';
-      case 'Shortlist':
-        return 'bg-purple-100 text-purple-800';
-      case 'Scheduled':
-        return 'bg-yellow-100 text-yellow-800';
-      case 'Accepted':
-        return 'bg-green-100 text-green-800';
-      case 'Rejected':
-        return 'bg-red-100 text-red-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
-  };
+  const fetchJobOrders = async () => {
+    setLoading(true);
+    setError("");
 
-  const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-600 font-bold';
-    if (score >= 60) return 'text-yellow-600 font-bold';
-    return 'text-red-600 font-bold';
-  };
+    const { data, error: dbError } = await supabase.from("t_job_orders")
+      .select(`
+        jo_id,
+        jo_reference_number,
+        is_active,
+        is_posted,
+        jo_country,
+        company_id,
+        t_companies(company_name, company_contact, company_representative),
+        jo_created_by,
+        t_employee!t_job_orders_jo_created_by_fkey(employee_first_name, employee_last_name),
+        posted_date:t_date!t_job_orders_jo_posted_date_id_fkey(full_date),
+        deadline:t_date!t_job_orders_jo_deadline_id_fkey(full_date),
+        t_job_positions(
+          position_id,
+          job_title,
+          job_description,
+          job_requirements,
+          job_contract_length,
+          job_number_needed,
+          job_salary_range,
+          job_category,
+          is_active,
+          t_applications(
+            application_id,
+            application_current_status,
+            job_fit_score,
+            resume_score,
+            t_applicant(app_first_name, app_last_name),
+            applied_date:t_date!t_applications_applied_date_id_fkey(full_date)
+          )
+        )
+      `);
 
-  const handleAddPosition = () => {
-    if (!newPosition.title || !newPosition.requirements || !newPosition.contractLength || 
-        !newPosition.salaryRange || !newPosition.category || !newPosition.openPositions) {
-      alert('Please fill in all required fields');
+    if (dbError) {
+      console.error(dbError);
+      setError("Failed to load job orders.");
+      setLoading(false);
       return;
     }
 
-    const position = {
-      id: Date.now(),
-      title: newPosition.title,
-      description: newPosition.requirements,
-      requirements: newPosition.requirements,
-      openPositions: parseInt(newPosition.openPositions),
-      contractLength: newPosition.contractLength,
-      salaryRange: newPosition.salaryRange,
-      category: newPosition.category,
-      applicants: []
-    };
+    const mapped: JobOrder[] = (data || []).map((row: any) => ({
+      jo_id: row.jo_id,
+      jo_reference_number: row.jo_reference_number || "",
+      is_active: row.is_active ?? false,
+      is_posted: row.is_posted ?? false,
+      jo_country: row.jo_country || "",
+      company_id: row.company_id,
+      company_name: row.t_companies?.company_name || "",
+      company_contact: row.t_companies?.company_contact || "",
+      company_representative: row.t_companies?.company_representative || "",
+      created_by_name: row.t_employee
+        ? `${row.t_employee.employee_first_name} ${row.t_employee.employee_last_name}`
+        : "",
+      jo_posted_date: row.posted_date?.full_date || "",
+      jo_deadline: row.deadline?.full_date || "",
+      positions: (row.t_job_positions || []).map((pos: any) => ({
+        position_id: pos.position_id,
+        job_title: pos.job_title || "",
+        job_description: pos.job_description || "",
+        job_requirements: pos.job_requirements || [],
+        job_contract_length: pos.job_contract_length || "",
+        job_number_needed: pos.job_number_needed || 0,
+        job_salary_range: pos.job_salary_range || "",
+        job_category: pos.job_category || "",
+        is_active: pos.is_active ?? true,
+        applicants: (pos.t_applications || []).map((app: any) => ({
+          application_id: app.application_id,
+          app_first_name: app.t_applicant?.app_first_name || "",
+          app_last_name: app.t_applicant?.app_last_name || "",
+          resume_score: app.resume_score || 0,
+          job_fit_score: app.job_fit_score || 0,
+          application_current_status:
+            app.application_current_status || "Applied",
+          applied_date: app.applied_date?.full_date || "",
+        })),
+      })),
+    }));
 
-    // Update the job order with the new position
-    setJobOrders(jobOrders.map(jo => 
-      jo.id === selectedJobOrder.id 
-        ? { ...jo, positions: [...jo.positions, position] }
-        : jo
-    ));
-
-    // Update selectedJobOrder to reflect the change
-    setSelectedJobOrder({
-      ...selectedJobOrder,
-      positions: [...selectedJobOrder.positions, position]
-    });
-
-    // Reset form and close modal
-    setNewPosition({
-      title: '',
-      requirements: '',
-      contractLength: '',
-      openPositions: 1,
-      salaryRange: '',
-      category: ''
-    });
-    setShowAddPositionModal(false);
+    setJobOrders(mapped);
+    setLoading(false);
   };
 
-  const totalJobOrders = jobOrders.length;
-  const openJobs = jobOrders.filter(job => job.status === 'Open').length;
-  const totalPositions = jobOrders.reduce((sum, job) => sum + job.positions.length, 0);
-  const totalApplicants = jobOrders.reduce((sum, job) => 
-    sum + job.positions.reduce((pSum, pos) => pSum + pos.applicants.length, 0), 0
-  );
+  const fetchCompanies = async () => {
+    const { data } = await supabase
+      .from("t_companies")
+      .select(
+        "company_id, company_name, company_country, company_contact, company_representative",
+      );
+    if (data) setCompanies(data);
+  };
+
+  const fetchEmployees = async () => {
+    const { data } = await supabase
+      .from("t_employee")
+      .select(
+        "employee_id, employee_first_name, employee_last_name, employee_is_active",
+      )
+      .eq("employee_is_active", true);
+    if (data) setEmployees(data);
+  };
+
+  const getStatusLabel = (is_active: boolean, is_posted: boolean) => {
+    if (!is_posted) return "Draft";
+    if (is_active) return "Active";
+    return "Closed";
+  };
+
+  const getStatusColor = (is_active: boolean, is_posted: boolean) => {
+    if (!is_posted) return "bg-gray-100 text-gray-800";
+    if (is_active) return "bg-green-100 text-green-800";
+    return "bg-red-100 text-red-800";
+  };
+
+  const getApplicantStatusColor = (status: string) => {
+    switch (status) {
+      case "Applied":
+        return "bg-gray-100 text-gray-800";
+      case "AI-screened":
+        return "bg-blue-100 text-blue-800";
+      case "Shortlist":
+        return "bg-purple-100 text-purple-800";
+      case "Scheduled":
+        return "bg-yellow-100 text-yellow-800";
+      case "Accepted":
+        return "bg-green-100 text-green-800";
+      case "Rejected":
+        return "bg-red-100 text-red-800";
+      default:
+        return "bg-gray-100 text-gray-800";
+    }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return "text-green-600 font-bold";
+    if (score >= 60) return "text-yellow-600 font-bold";
+    return "text-red-600 font-bold";
+  };
+
+  const handleApplicantStatusChange = async (
+    application_id: number,
+    newStatus: string,
+  ) => {
+    const { error: updateError } = await supabase
+      .from("t_applications")
+      .update({ application_current_status: newStatus })
+      .eq("application_id", application_id);
+
+    if (updateError) {
+      alert("Failed to update status.");
+      return;
+    }
+
+    if (!selectedPosition) return;
+    const updatedApplicants = selectedPosition.position.applicants.map((a) =>
+      a.application_id === application_id
+        ? { ...a, application_current_status: newStatus }
+        : a,
+    );
+    const updatedPosition = {
+      ...selectedPosition.position,
+      applicants: updatedApplicants,
+    };
+    setSelectedPosition({ ...selectedPosition, position: updatedPosition });
+
+    setJobOrders((prev) =>
+      prev.map((jo) => ({
+        ...jo,
+        positions: jo.positions.map((pos) =>
+          pos.position_id === selectedPosition.position.position_id
+            ? updatedPosition
+            : pos,
+        ),
+      })),
+    );
+  };
+
+  const handleToggleJobOrderStatus = async (
+    jo_id: number,
+    is_active: boolean,
+    is_posted: boolean,
+  ) => {
+    const { error: updateError } = await supabase
+      .from("t_job_orders")
+      .update({ is_active, is_posted })
+      .eq("jo_id", jo_id);
+
+    if (updateError) {
+      alert("Failed to update status.");
+      return;
+    }
+
+    setJobOrders((prev) =>
+      prev.map((jo) =>
+        jo.jo_id === jo_id ? { ...jo, is_active, is_posted } : jo,
+      ),
+    );
+    if (selectedJobOrder?.jo_id === jo_id) {
+      setSelectedJobOrder((prev) =>
+        prev ? { ...prev, is_active, is_posted } : prev,
+      );
+    }
+  };
+
+  const handleAddPosition = async () => {
+    if (
+      !newPosition.job_title ||
+      !newPosition.job_requirements ||
+      !newPosition.job_contract_length ||
+      !newPosition.job_salary_range ||
+      !newPosition.job_category ||
+      !newPosition.job_number_needed
+    ) {
+      alert("Please fill in all required fields");
+      return;
+    }
+    if (!selectedJobOrder) return;
+    setSaving(true);
+
+    const { data, error: insertError } = await supabase
+      .from("t_job_positions")
+      .insert({
+        jo_id: selectedJobOrder.jo_id,
+        job_title: newPosition.job_title,
+        job_description: newPosition.job_description,
+        job_requirements: [newPosition.job_requirements],
+        job_contract_length: newPosition.job_contract_length,
+        job_number_needed: newPosition.job_number_needed,
+        job_salary_range: newPosition.job_salary_range,
+        job_category: newPosition.job_category,
+        is_active: true,
+        job_filled_count: 0,
+      })
+      .select()
+      .single();
+
+    if (insertError || !data) {
+      alert("Failed to add position.");
+      setSaving(false);
+      return;
+    }
+
+    const newPos: Position = {
+      position_id: data.position_id,
+      job_title: data.job_title,
+      job_description: data.job_description || "",
+      job_requirements: data.job_requirements || [],
+      job_contract_length: data.job_contract_length || "",
+      job_number_needed: data.job_number_needed || 0,
+      job_salary_range: data.job_salary_range || "",
+      job_category: data.job_category || "",
+      is_active: true,
+      applicants: [],
+    };
+
+    const updatedJO = {
+      ...selectedJobOrder,
+      positions: [...selectedJobOrder.positions, newPos],
+    };
+    setSelectedJobOrder(updatedJO);
+    setJobOrders((prev) =>
+      prev.map((jo) => (jo.jo_id === selectedJobOrder.jo_id ? updatedJO : jo)),
+    );
+
+    setNewPosition({
+      job_title: "",
+      job_description: "",
+      job_requirements: "",
+      job_number_needed: 1,
+      job_contract_length: "",
+      job_salary_range: "",
+      job_category: "",
+    });
+    setShowAddPositionModal(false);
+    setSaving(false);
+  };
+
+  const handlePostJobOrder = async () => {
+    if (
+      !jobOrderForm.company_id ||
+      !jobOrderForm.jo_reference_number ||
+      !jobOrderForm.jo_deadline ||
+      !jobOrderForm.jo_created_by
+    ) {
+      alert("Please fill in all required fields.");
+      return;
+    }
+    if (positions.length === 0) {
+      alert("Please add at least one position.");
+      return;
+    }
+    setSaving(true);
+
+    // Get deadline date_id from t_date
+    const { data: dateData } = await supabase
+      .from("t_date")
+      .select("date_id")
+      .eq("full_date", jobOrderForm.jo_deadline)
+      .single();
+
+    if (!dateData) {
+      alert(
+        "Deadline date not found in the date table. Please choose a valid date.",
+      );
+      setSaving(false);
+      return;
+    }
+
+    const { data: newJO, error: joError } = await supabase
+      .from("t_job_orders")
+      .insert({
+        company_id: Number(jobOrderForm.company_id),
+        jo_country: jobOrderForm.jo_country,
+        jo_reference_number: jobOrderForm.jo_reference_number,
+        jo_deadline_id: dateData.date_id,
+        jo_created_by: Number(jobOrderForm.jo_created_by),
+        is_active: jobOrderForm.is_active,
+        is_posted: jobOrderForm.is_posted,
+      })
+      .select()
+      .single();
+
+    if (joError || !newJO) {
+      alert("Failed to create job order.");
+      setSaving(false);
+      return;
+    }
+
+    // Insert all positions
+    for (const pos of positions) {
+      await supabase.from("t_job_positions").insert({
+        jo_id: newJO.jo_id,
+        job_title: pos.job_title,
+        job_description: pos.job_description,
+        job_requirements: [pos.job_requirements],
+        job_contract_length: pos.job_contract_length,
+        job_number_needed: pos.job_number_needed,
+        job_salary_range: pos.job_salary_range,
+        job_category: pos.job_category,
+        is_active: true,
+        job_filled_count: 0,
+      });
+    }
+
+    await fetchJobOrders();
+    setSaving(false);
+    setViewMode("list");
+    resetForm();
+    alert(
+      `Job Order created successfully with ${positions.length} position${positions.length !== 1 ? "s" : ""}!`,
+    );
+  };
 
   const resetForm = () => {
     setJobOrderForm({
-      referenceNumber: '',
-      companyName: '',
-      companyContactNumber: '',
-      companyRepresentative: '',
-      country: '',
-      pointPersonId: '',
-      deadline: ''
+      company_id: "",
+      jo_country: "",
+      jo_reference_number: "",
+      jo_deadline: "",
+      jo_created_by: "",
+      is_active: true,
+      is_posted: false,
     });
     setPositions([]);
     setCurrentPosition({
-      tempId: 0,
-      title: '',
-      description: '',
-      requirements: '',
-      openPositions: 1,
-      contractLength: '',
-      salaryRange: '',
-      category: ''
+      job_title: "",
+      job_description: "",
+      job_requirements: "",
+      job_number_needed: 1,
+      job_contract_length: "",
+      job_salary_range: "",
+      job_category: "",
     });
   };
 
-  // Positions View - Full Screen
-  if (viewMode === 'positions' && selectedJobOrder) {
-    const totalJobApplicants = selectedJobOrder.positions.reduce((sum, pos) => sum + pos.applicants.length, 0);
-    const totalOpenPositions = selectedJobOrder.positions.reduce((sum, pos) => sum + pos.openPositions, 0);
+  const filteredJobOrders = jobOrders.filter((jo) => {
+    const matchesSearch =
+      jo.jo_reference_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      jo.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      jo.positions.some((pos) =>
+        pos.job_title.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+    const status = getStatusLabel(jo.is_active, jo.is_posted);
+    const matchesFilter = filterStatus === "All" || status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  const totalJobOrders = jobOrders.length;
+  const activeJobs = jobOrders.filter(
+    (jo) => jo.is_active && jo.is_posted,
+  ).length;
+  const totalPositions = jobOrders.reduce(
+    (sum, jo) => sum + jo.positions.length,
+    0,
+  );
+  const totalApplicants = jobOrders.reduce(
+    (sum, jo) =>
+      sum + jo.positions.reduce((pSum, pos) => pSum + pos.applicants.length, 0),
+    0,
+  );
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p
+          className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+        >
+          Loading job orders...
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
+  // Positions View
+  if (viewMode === "positions" && selectedJobOrder) {
+    const totalJobApplicants = selectedJobOrder.positions.reduce(
+      (sum, pos) => sum + pos.applicants.length,
+      0,
+    );
+    const totalOpenPositions = selectedJobOrder.positions.reduce(
+      (sum, pos) => sum + pos.job_number_needed,
+      0,
+    );
 
     return (
       <div className="h-full flex flex-col bg-gray-50">
@@ -395,7 +577,7 @@ export default function JobOrders() {
             <div className="flex items-center space-x-4 mb-4">
               <button
                 onClick={() => {
-                  setViewMode('list');
+                  setViewMode("list");
                   setSelectedJobOrder(null);
                 }}
                 className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
@@ -404,68 +586,50 @@ export default function JobOrders() {
                 <span>Back to Job Orders</span>
               </button>
             </div>
-            
-            <div className="flex items-start justify-between">
-              <div className="flex items-start space-x-4">
-                <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center">
-                  <Briefcase className="w-8 h-8 text-green-600" />
-                </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 font-mono">{selectedJobOrder.jobOrderCode}</h1>
-                  <p className="text-lg text-gray-700 mt-1">{selectedJobOrder.principalCompanyName}</p>
-                  {(selectedJobOrder.companyContactNumber || selectedJobOrder.companyRepresentative) && (
-                    <div className="flex items-center space-x-4 mt-1">
-                      {selectedJobOrder.companyRepresentative && (
-                        <span className="text-sm text-gray-600">
-                          <span className="font-medium">Representative:</span> {selectedJobOrder.companyRepresentative}
-                        </span>
-                      )}
-                      {selectedJobOrder.companyContactNumber && (
-                        <span className="text-sm text-gray-600">
-                          <span className="font-medium">Contact:</span> {selectedJobOrder.companyContactNumber}
-                        </span>
-                      )}
-                    </div>
+            <div className="flex items-start space-x-4">
+              <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center">
+                <Briefcase className="w-8 h-8 text-green-600" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900 font-mono">
+                  {selectedJobOrder.jo_reference_number}
+                </h1>
+                <p className="text-lg text-gray-700 mt-1">
+                  {selectedJobOrder.company_name}
+                </p>
+                <div className="flex items-center space-x-4 mt-1">
+                  {selectedJobOrder.company_representative && (
+                    <span className="text-sm text-gray-600">
+                      <span className="font-medium">Representative:</span>{" "}
+                      {selectedJobOrder.company_representative}
+                    </span>
                   )}
-                  <div className="flex items-center space-x-3 mt-2">
-                    <div className="relative inline-block">
-                      {editingStatus === selectedJobOrder.id ? (
-                        <select
-                          value={selectedJobOrder.status}
-                          onChange={(e) => {
-                            updateJobOrderStatus(selectedJobOrder.id, e.target.value as 'Active' | 'Closed' | 'On Hold');
-                            setSelectedJobOrder({ ...selectedJobOrder, status: e.target.value as 'Active' | 'Closed' | 'On Hold' });
-                          }}
-                          onBlur={() => setEditingStatus(null)}
-                          autoFocus
-                          className={`text-sm px-3 py-1 rounded-full border-2 border-blue-500 focus:outline-none font-semibold ${getStatusColor(selectedJobOrder.status)}`}
-                        >
-                          <option value="Active">Active</option>
-                          <option value="Closed">Closed</option>
-                          <option value="On Hold">On Hold</option>
-                        </select>
-                      ) : (
-                        <button
-                          onClick={() => setEditingStatus(selectedJobOrder.id)}
-                          className={`text-sm px-3 py-1 rounded-full flex items-center space-x-1 hover:opacity-80 transition-opacity font-semibold ${getStatusColor(selectedJobOrder.status)}`}
-                        >
-                          <span>{selectedJobOrder.status}</span>
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                      )}
-                    </div>
+                  {selectedJobOrder.company_contact && (
                     <span className="text-sm text-gray-600">
-                      Created: {selectedJobOrder.dateCreated}
+                      <span className="font-medium">Contact:</span>{" "}
+                      {selectedJobOrder.company_contact}
                     </span>
-                    <span className="text-sm text-gray-600">
-                      Deadline: {selectedJobOrder.deadline}
-                    </span>
-                    {selectedJobOrder.pointPersonId && (
-                      <span className="text-sm text-gray-600">
-                        Point Person: {usersData.find(u => u.id === selectedJobOrder.pointPersonId)?.name || 'N/A'}
-                      </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-3 mt-2">
+                  <span
+                    className={`text-sm px-3 py-1 rounded-full font-semibold ${getStatusColor(selectedJobOrder.is_active, selectedJobOrder.is_posted)}`}
+                  >
+                    {getStatusLabel(
+                      selectedJobOrder.is_active,
+                      selectedJobOrder.is_posted,
                     )}
-                  </div>
+                  </span>
+                  {selectedJobOrder.jo_deadline && (
+                    <span className="text-sm text-gray-600">
+                      Deadline: {selectedJobOrder.jo_deadline}
+                    </span>
+                  )}
+                  {selectedJobOrder.created_by_name && (
+                    <span className="text-sm text-gray-600">
+                      Point Person: {selectedJobOrder.created_by_name}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -477,15 +641,21 @@ export default function JobOrders() {
           <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4">
             <div className="bg-green-50 rounded-lg p-4 border-l-4 border-green-600">
               <p className="text-sm text-gray-600 mb-1">Total Positions</p>
-              <p className="text-3xl font-bold text-gray-900">{selectedJobOrder.positions.length}</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {selectedJobOrder.positions.length}
+              </p>
             </div>
             <div className="bg-blue-50 rounded-lg p-4 border-l-4 border-blue-600">
-              <p className="text-sm text-gray-600 mb-1">Open Positions</p>
-              <p className="text-3xl font-bold text-gray-900">{totalOpenPositions}</p>
+              <p className="text-sm text-gray-600 mb-1">Slots Needed</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {totalOpenPositions}
+              </p>
             </div>
             <div className="bg-purple-50 rounded-lg p-4 border-l-4 border-purple-600">
               <p className="text-sm text-gray-600 mb-1">Total Applicants</p>
-              <p className="text-3xl font-bold text-gray-900">{totalJobApplicants}</p>
+              <p className="text-3xl font-bold text-gray-900">
+                {totalJobApplicants}
+              </p>
             </div>
           </div>
         </div>
@@ -495,7 +665,7 @@ export default function JobOrders() {
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-2xl font-bold text-gray-900">Positions</h2>
-              <button 
+              <button
                 onClick={() => setShowAddPositionModal(true)}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
               >
@@ -503,63 +673,70 @@ export default function JobOrders() {
                 <span>Add Position</span>
               </button>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {selectedJobOrder.positions.map((position) => (
                 <div
-                  key={position.id}
-                  onClick={() => setSelectedPosition({ jobOrder: selectedJobOrder, position })}
+                  key={position.position_id}
+                  onClick={() =>
+                    setSelectedPosition({
+                      jobOrder: selectedJobOrder,
+                      position,
+                    })
+                  }
                   className="bg-white rounded-2xl border-2 border-green-500 shadow-lg hover:shadow-xl hover:border-green-600 transition-all cursor-pointer p-5"
                 >
-                  {/* Icon and Status Badge */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
                       <Users className="w-7 h-7 text-blue-600" />
                     </div>
-                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                      position.openPositions > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {position.openPositions} Open
+                    <span className="px-3 py-1 text-sm font-semibold rounded-full bg-green-100 text-green-700">
+                      {position.job_number_needed} Needed
                     </span>
                   </div>
-                  
-                  {/* Job Title */}
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{position.title}</h3>
-                  
-                  {/* Job Description */}
-                  {position.description && (
-                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">{position.description}</p>
+                  <h3 className="text-xl font-bold text-gray-900 mb-2">
+                    {position.job_title}
+                  </h3>
+                  {position.job_description && (
+                    <p className="text-gray-600 text-sm mb-4 line-clamp-2">
+                      {position.job_description}
+                    </p>
                   )}
-
-                  {/* Contract & Salary */}
                   <div className="space-y-1 mb-4">
-                    {position.contractLength && (
+                    {position.job_contract_length && (
                       <p className="text-sm">
-                        <span className="text-gray-500">Contract:</span> <span className="text-gray-900 font-medium">{position.contractLength}</span>
+                        <span className="text-gray-500">Contract:</span>{" "}
+                        <span className="text-gray-900 font-medium">
+                          {position.job_contract_length}
+                        </span>
                       </p>
                     )}
-                    {position.salaryRange && (
+                    {position.job_salary_range && (
                       <p className="text-sm">
-                        <span className="text-gray-500">Salary:</span> <span className="text-gray-900 font-medium">{position.salaryRange}</span>
+                        <span className="text-gray-500">Salary:</span>{" "}
+                        <span className="text-gray-900 font-medium">
+                          {position.job_salary_range}
+                        </span>
                       </p>
                     )}
                   </div>
-
-                  {/* Applicants Stats */}
                   <div className="flex items-center justify-between pt-3 border-t border-gray-200">
                     <div>
                       <p className="text-xs text-gray-500">Applicants</p>
-                      <p className="text-2xl font-bold text-gray-900">{position.applicants.length}</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {position.applicants.length}
+                      </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Shortlisted</p>
                       <p className="text-2xl font-bold text-purple-600">
-                        {position.applicants.filter(a => a.status === 'Evaluated').length}
+                        {
+                          position.applicants.filter(
+                            (a) => a.application_current_status === "Shortlist",
+                          ).length
+                        }
                       </p>
                     </div>
-                    <div className="text-gray-300">
-                      <ChevronRight className="w-5 h-5" />
-                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-300" />
                   </div>
                 </div>
               ))}
@@ -567,67 +744,75 @@ export default function JobOrders() {
           </div>
         </div>
 
-        {/* Applicants Modal - Render when position is selected */}
+        {/* Applicants Modal */}
         {selectedPosition && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
-              {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200">
                 <div>
                   <div className="flex items-center space-x-3">
-                    <h2 className="text-2xl font-bold text-gray-900">{selectedPosition.position.title}</h2>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                      selectedPosition.position.openPositions > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                    }`}>
-                      {selectedPosition.position.openPositions} Open Position{selectedPosition.position.openPositions !== 1 ? 's' : ''}
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {selectedPosition.position.job_title}
+                    </h2>
+                    <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                      {selectedPosition.position.job_number_needed} Needed
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                     <p className="text-sm text-gray-600">
-                      <span className="font-semibold">Job Order:</span> {selectedPosition.jobOrder.jobOrderCode}
+                      <span className="font-semibold">Job Order:</span>{" "}
+                      {selectedPosition.jobOrder.jo_reference_number}
                     </p>
                     <p className="text-sm text-gray-600">
-                      <span className="font-semibold">Company:</span> {selectedPosition.jobOrder.principalCompanyName}
+                      <span className="font-semibold">Company:</span>{" "}
+                      {selectedPosition.jobOrder.company_name}
                     </p>
-                    {selectedPosition.jobOrder.companyRepresentative && (
+                    {selectedPosition.jobOrder.jo_deadline && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Representative:</span> {selectedPosition.jobOrder.companyRepresentative}
+                        <span className="font-semibold">Deadline:</span>{" "}
+                        {selectedPosition.jobOrder.jo_deadline}
                       </p>
                     )}
-                    {selectedPosition.jobOrder.companyContactNumber && (
+                    {selectedPosition.position.job_contract_length && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Contact:</span> {selectedPosition.jobOrder.companyContactNumber}
+                        <span className="font-semibold">Contract:</span>{" "}
+                        {selectedPosition.position.job_contract_length}
                       </p>
                     )}
-                    <p className="text-sm text-gray-600">
-                      <span className="font-semibold">Deadline:</span> {selectedPosition.jobOrder.deadline}
-                    </p>
-                    {selectedPosition.position.contractLength && (
+                    {selectedPosition.position.job_salary_range && (
                       <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Contract:</span> {selectedPosition.position.contractLength}
-                      </p>
-                    )}
-                    {selectedPosition.position.salaryRange && (
-                      <p className="text-sm text-gray-600">
-                        <span className="font-semibold">Salary:</span> {selectedPosition.position.salaryRange}
+                        <span className="font-semibold">Salary:</span>{" "}
+                        {selectedPosition.position.job_salary_range}
                       </p>
                     )}
                   </div>
                 </div>
                 <button
                   onClick={() => setSelectedPosition(null)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-8 h-8" />
                 </button>
               </div>
 
-              {/* Applicants Stats */}
+              {/* Status counts */}
               <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
-                {['Applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
-                  const count = selectedPosition.position.applicants.filter(a => a.status === status).length;
+                {[
+                  "Applied",
+                  "AI-screened",
+                  "Shortlist",
+                  "Scheduled",
+                  "Accepted",
+                  "Rejected",
+                ].map((status) => {
+                  const count = selectedPosition.position.applicants.filter(
+                    (a) => a.application_current_status === status,
+                  ).length;
                   return (
-                    <div key={status} className="bg-white rounded-lg shadow-sm p-3">
+                    <div
+                      key={status}
+                      className="bg-white rounded-lg shadow-sm p-3"
+                    >
                       <p className="text-xs text-gray-500 mb-1">{status}</p>
                       <p className="text-xl font-bold text-gray-900">{count}</p>
                     </div>
@@ -635,32 +820,39 @@ export default function JobOrders() {
                 })}
               </div>
 
-              {/* Position Details */}
+              {/* Position details */}
               <div className="px-6 py-4 bg-white border-b border-gray-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Description */}
-                  {selectedPosition.position.description && (
+                  {selectedPosition.position.job_description && (
                     <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-blue-900 mb-2">Position Description</h3>
+                      <h3 className="text-sm font-semibold text-blue-900 mb-2">
+                        Position Description
+                      </h3>
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {selectedPosition.position.description}
+                        {selectedPosition.position.job_description}
                       </p>
                     </div>
                   )}
-                  
-                  {/* Requirements */}
-                  {selectedPosition.position.requirements && (
+                  {selectedPosition.position.job_requirements?.length > 0 && (
                     <div className="bg-purple-50 border-l-4 border-purple-600 rounded-lg p-4">
-                      <h3 className="text-sm font-semibold text-purple-900 mb-2">Position Requirements</h3>
+                      <h3 className="text-sm font-semibold text-purple-900 mb-2">
+                        Position Requirements
+                      </h3>
                       <p className="text-sm text-gray-700 leading-relaxed">
-                        {selectedPosition.position.requirements}
+                        {Array.isArray(
+                          selectedPosition.position.job_requirements,
+                        )
+                          ? selectedPosition.position.job_requirements.join(
+                              ", ",
+                            )
+                          : selectedPosition.position.job_requirements}
                       </p>
                     </div>
                   )}
                 </div>
               </div>
 
-              {/* Search and Filters */}
+              {/* Search and filter */}
               <div className="px-6 py-4 bg-white border-b border-gray-200">
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
@@ -673,132 +865,159 @@ export default function JobOrders() {
                       className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
                     />
                   </div>
-                  <div className="flex items-center space-x-2">
-                    <Filter className="w-4 h-4 text-gray-500" />
-                    <select
-                      value={applicantFilterStatus}
-                      onChange={(e) => setApplicantFilterStatus(e.target.value)}
-                      className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
-                    >
-                      <option value="All">All Status</option>
-                      <option value="Not evaluated">Not evaluated</option>
-                      <option value="Evaluated">Evaluated</option>
-                      <option value="Scheduled">Scheduled</option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </div>
+                  <select
+                    value={applicantFilterStatus}
+                    onChange={(e) => setApplicantFilterStatus(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
+                  >
+                    <option value="All">All Status</option>
+                    {[
+                      "Applied",
+                      "AI-screened",
+                      "Shortlist",
+                      "Scheduled",
+                      "Accepted",
+                      "Rejected",
+                    ].map((s) => (
+                      <option key={s} value={s}>
+                        {s}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     value={applicantScoreSort}
                     onChange={(e) => setApplicantScoreSort(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
                   >
                     <option value="none">Resume Score (Default)</option>
-                    <option value="high-to-low">Resume Score (High to Low)</option>
-                    <option value="low-to-high">Resume Score (Low to High)</option>
+                    <option value="high-to-low">
+                      Resume Score (High to Low)
+                    </option>
+                    <option value="low-to-high">
+                      Resume Score (Low to High)
+                    </option>
                   </select>
                 </div>
               </div>
 
-              {/* Applicants Table */}
+              {/* Applicants table */}
               <div className="flex-1 overflow-auto p-6">
                 <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                   <table className="w-full">
                     <thead className="bg-green-50 sticky top-0">
                       <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Name
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Resume Score
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Job Fit Score
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Applied Date
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Rejection Reason
-                        </th>
+                        {[
+                          "Name",
+                          "Resume Score",
+                          "Job Fit Score",
+                          "Status",
+                          "Applied Date",
+                        ].map((h) => (
+                          <th
+                            key={h}
+                            className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                          >
+                            {h}
+                          </th>
+                        ))}
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
                       {(() => {
-                        // Filter applicants
-                        let filteredApplicants = selectedPosition.position.applicants.filter(applicant => {
-                          const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                          const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                          return matchesSearch && matchesStatus;
-                        });
+                        let filtered =
+                          selectedPosition.position.applicants.filter((a) => {
+                            const fullName =
+                              `${a.app_first_name} ${a.app_last_name}`.toLowerCase();
+                            const matchesSearch = fullName.includes(
+                              applicantSearchTerm.toLowerCase(),
+                            );
+                            const matchesStatus =
+                              applicantFilterStatus === "All" ||
+                              a.application_current_status ===
+                                applicantFilterStatus;
+                            return matchesSearch && matchesStatus;
+                          });
+                        if (applicantScoreSort === "high-to-low")
+                          filtered = [...filtered].sort(
+                            (a, b) => b.resume_score - a.resume_score,
+                          );
+                        if (applicantScoreSort === "low-to-high")
+                          filtered = [...filtered].sort(
+                            (a, b) => a.resume_score - b.resume_score,
+                          );
 
-                        // Sort applicants by resume score
-                        if (applicantScoreSort === 'high-to-low') {
-                          filteredApplicants = [...filteredApplicants].sort((a, b) => b.resumeScore - a.resumeScore);
-                        } else if (applicantScoreSort === 'low-to-high') {
-                          filteredApplicants = [...filteredApplicants].sort((a, b) => a.resumeScore - b.resumeScore);
-                        }
-
-                        if (filteredApplicants.length === 0) {
+                        if (filtered.length === 0)
                           return (
                             <tr>
-                              <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
+                              <td
+                                colSpan={5}
+                                className="px-6 py-8 text-center text-gray-500"
+                              >
                                 No applicants found
                               </td>
                             </tr>
                           );
-                        }
 
-                        return filteredApplicants.map((applicant) => (
-                          <tr key={applicant.id} className="hover:bg-gray-50">
+                        return filtered.map((applicant) => (
+                          <tr
+                            key={applicant.application_id}
+                            className="hover:bg-gray-50"
+                          >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
                                 <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
                                   <span className="text-green-600 font-semibold text-sm">
-                                    {applicant.name.split(' ').map(n => n[0]).join('')}
+                                    {applicant.app_first_name[0]}
+                                    {applicant.app_last_name[0]}
                                   </span>
                                 </div>
-                                <div className="text-sm font-medium text-gray-900">{applicant.name}</div>
+                                <div className="text-sm font-medium text-gray-900">
+                                  {applicant.app_first_name}{" "}
+                                  {applicant.app_last_name}
+                                </div>
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`text-sm ${getScoreColor(applicant.resumeScore)}`}>
-                                {applicant.resumeScore}%
-                              </div>
+                              <span
+                                className={`text-sm ${getScoreColor(applicant.resume_score)}`}
+                              >
+                                {applicant.resume_score?.toFixed(1)}%
+                              </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
-                              <div className={`text-sm ${getScoreColor(applicant.jobFitScore || 0)}`}>
-                                {applicant.jobFitScore || 0}%
-                              </div>
+                              <span
+                                className={`text-sm ${getScoreColor(applicant.job_fit_score)}`}
+                              >
+                                {applicant.job_fit_score?.toFixed(1)}%
+                              </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap">
                               <select
-                                value={applicant.status}
-                                onChange={(e) => handleStatusChange(applicant.id, e.target.value)}
-                                className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.status)}`}
+                                value={applicant.application_current_status}
+                                onChange={(e) =>
+                                  handleApplicantStatusChange(
+                                    applicant.application_id,
+                                    e.target.value,
+                                  )
+                                }
+                                className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.application_current_status)}`}
                               >
-                                <option value="Applied">Applied</option>
-                                <option value="AI-screened">AI-screened</option>
-                                <option value="Shortlist">Shortlist</option>
-                                <option value="Scheduled">Scheduled</option>
-                                <option value="Accepted">Accepted</option>
-                                <option value="Rejected">Rejected</option>
+                                {[
+                                  "Applied",
+                                  "AI-screened",
+                                  "Shortlist",
+                                  "Scheduled",
+                                  "Accepted",
+                                  "Rejected",
+                                ].map((s) => (
+                                  <option key={s} value={s}>
+                                    {s}
+                                  </option>
+                                ))}
                               </select>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                              {applicant.appliedDate}
-                            </td>
-                            <td className="px-6 py-4">
-                              {applicant.status === 'Rejected' && applicant.rejectionReason ? (
-                                <div className="text-sm text-red-800 max-w-md">
-                                  {applicant.rejectionReason}
-                                </div>
-                              ) : (
-                                <span className="text-sm text-gray-400">—</span>
-                              )}
+                              {applicant.applied_date}
                             </td>
                           </tr>
                         ));
@@ -808,36 +1027,13 @@ export default function JobOrders() {
                 </div>
               </div>
 
-              {/* Modal Footer */}
-              <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
-                <div className="text-sm text-gray-600">
-                  Total: <span className="font-semibold">{(() => {
-                    const filtered = selectedPosition.position.applicants.filter(applicant => {
-                      const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                      const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                      return matchesSearch && matchesStatus;
-                    });
-                    return filtered.length;
-                  })()}</span> applicant{(() => {
-                    const filtered = selectedPosition.position.applicants.filter(applicant => {
-                      const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                      const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                      return matchesSearch && matchesStatus;
-                    });
-                    return filtered.length !== 1 ? 's' : '';
-                  })()}
-                </div>
-                <div className="flex space-x-3">
-                  <button
-                    onClick={() => setSelectedPosition(null)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    Close
-                  </button>
-                  <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                    Export Applicants
-                  </button>
-                </div>
+              <div className="flex justify-end items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
+                <button
+                  onClick={() => setSelectedPosition(null)}
+                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                >
+                  Close
+                </button>
               </div>
             </div>
           </div>
@@ -847,145 +1043,145 @@ export default function JobOrders() {
         {showAddPositionModal && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-              {/* Modal Header */}
               <div className="flex items-center justify-between p-6 border-b border-gray-200 sticky top-0 bg-white">
-                <h2 className="text-2xl font-bold text-gray-900">Add New Position</h2>
+                <h2 className="text-2xl font-bold text-gray-900">
+                  Add New Position
+                </h2>
                 <button
-                  onClick={() => {
-                    setShowAddPositionModal(false);
-                    setNewPosition({
-                      title: '',
-                      requirements: '',
-                      contractLength: '',
-                      openPositions: 1,
-                      salaryRange: '',
-                      category: ''
-                    });
-                  }}
+                  onClick={() => setShowAddPositionModal(false)}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <X className="w-6 h-6" />
                 </button>
               </div>
-
-              {/* Modal Body */}
               <div className="p-6 space-y-5">
-                {/* Job Title */}
+                {[
+                  {
+                    label: "Job Title",
+                    key: "job_title",
+                    type: "input",
+                    placeholder: "e.g., Software Engineer",
+                  },
+                  {
+                    label: "Job Description",
+                    key: "job_description",
+                    type: "textarea",
+                    placeholder: "Describe the role...",
+                  },
+                  {
+                    label: "Job Requirements",
+                    key: "job_requirements",
+                    type: "textarea",
+                    placeholder: "List qualifications...",
+                  },
+                  {
+                    label: "Contract Length",
+                    key: "job_contract_length",
+                    type: "input",
+                    placeholder: "e.g., 6 months",
+                  },
+                  {
+                    label: "Salary Range",
+                    key: "job_salary_range",
+                    type: "input",
+                    placeholder: "e.g., $3,000-$5,000/month",
+                  },
+                ].map(({ label, key, type, placeholder }) => (
+                  <div key={key}>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      {label} <span className="text-red-500">*</span>
+                    </label>
+                    {type === "textarea" ? (
+                      <textarea
+                        value={(newPosition as any)[key]}
+                        onChange={(e) =>
+                          setNewPosition({
+                            ...newPosition,
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={placeholder}
+                        rows={3}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={(newPosition as any)[key]}
+                        onChange={(e) =>
+                          setNewPosition({
+                            ...newPosition,
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={placeholder}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      />
+                    )}
+                  </div>
+                ))}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Title <span className="text-red-500">*</span>
+                    Number Needed <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    value={newPosition.title}
-                    onChange={(e) => setNewPosition({ ...newPosition, title: e.target.value })}
-                    placeholder="e.g., Software Engineer, Construction Worker"
+                    type="number"
+                    min="1"
+                    value={newPosition.job_number_needed}
+                    onChange={(e) =>
+                      setNewPosition({
+                        ...newPosition,
+                        job_number_needed: parseInt(e.target.value) || 1,
+                      })
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
-
-                {/* Job Category */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Job Category <span className="text-red-500">*</span>
                   </label>
                   <select
-                    value={newPosition.category}
-                    onChange={(e) => setNewPosition({ ...newPosition, category: e.target.value })}
+                    value={newPosition.job_category}
+                    onChange={(e) =>
+                      setNewPosition({
+                        ...newPosition,
+                        job_category: e.target.value,
+                      })
+                    }
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                   >
                     <option value="">Select a category</option>
-                    <option value="Construction">Construction</option>
-                    <option value="Healthcare">Healthcare</option>
-                    <option value="Hospitality">Hospitality</option>
-                    <option value="Manufacturing">Manufacturing</option>
-                    <option value="Technology">Technology</option>
-                    <option value="Agriculture">Agriculture</option>
-                    <option value="Transportation">Transportation</option>
-                    <option value="Other">Other</option>
+                    {[
+                      "Construction",
+                      "Healthcare",
+                      "Hospitality",
+                      "Manufacturing",
+                      "Technology",
+                      "Agriculture",
+                      "Transportation",
+                      "Other",
+                    ].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
                   </select>
                 </div>
-
-                {/* Job Requirements */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Job Requirements <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={newPosition.requirements}
-                    onChange={(e) => setNewPosition({ ...newPosition, requirements: e.target.value })}
-                    placeholder="Enter job requirements and qualifications..."
-                    rows={4}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
-                {/* Contract Length */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Contract Length <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newPosition.contractLength}
-                    onChange={(e) => setNewPosition({ ...newPosition, contractLength: e.target.value })}
-                    placeholder="e.g., 3 months, 6 months"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
-                {/* Number of Applicants Needed */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Number of Applicants Needed <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    value={newPosition.openPositions}
-                    onChange={(e) => setNewPosition({ ...newPosition, openPositions: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-
-                {/* Salary Range */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Salary Range <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    value={newPosition.salaryRange}
-                    onChange={(e) => setNewPosition({ ...newPosition, salaryRange: e.target.value })}
-                    placeholder="e.g., $15-20/hour, ₱500-800/day"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
               </div>
-
-              {/* Modal Footer */}
               <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 bg-gray-50">
                 <button
-                  onClick={() => {
-                    setShowAddPositionModal(false);
-                    setNewPosition({
-                      title: '',
-                      requirements: '',
-                      contractLength: '',
-                      openPositions: 1,
-                      salaryRange: '',
-                      category: ''
-                    });
-                  }}
-                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  onClick={() => setShowAddPositionModal(false)}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={handleAddPosition}
-                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  disabled={saving}
+                  className="px-6 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors disabled:opacity-50"
                 >
-                  Add Position
+                  {saving ? "Adding..." : "Add Position"}
                 </button>
               </div>
             </div>
@@ -996,209 +1192,216 @@ export default function JobOrders() {
   }
 
   // Form View
-  if (viewMode === 'form') {
+  if (viewMode === "form") {
     return (
       <div className="h-full flex flex-col bg-gray-50">
-        {/* Form Header */}
         <div className="bg-white border-b border-gray-200 px-6 py-5 shadow-sm">
-          <div className="flex items-center justify-between max-w-7xl mx-auto">
-            <div className="flex items-center space-x-4">
-              <button
-                onClick={() => {
-                  setViewMode('list');
-                  resetForm();
-                }}
-                className="flex items-center space-x-2 text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5" />
-                <span>Back to Job Orders</span>
-              </button>
-              <div className="h-6 w-px bg-gray-300" />
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">Create New Job Order</h1>
-                <p className="text-sm text-gray-600 mt-0.5">Fill in company details and add positions</p>
-              </div>
+          <div className="flex items-center space-x-4 max-w-7xl mx-auto">
+            <button
+              onClick={() => {
+                setViewMode("list");
+                resetForm();
+              }}
+              className="flex items-center space-x-2 text-gray-600 hover:text-gray-900"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              <span>Back to Job Orders</span>
+            </button>
+            <div className="h-6 w-px bg-gray-300" />
+            <div>
+              <h1 className="text-2xl font-bold text-gray-900">
+                Create New Job Order
+              </h1>
+              <p className="text-sm text-gray-600">
+                Fill in details and add positions
+              </p>
             </div>
           </div>
         </div>
 
-        {/* Form Body - Two Column Layout */}
         <div className="flex-1 overflow-auto p-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
-            {/* Left Column - Job Order Details */}
+            {/* Left - Job Order Info */}
             <div className="space-y-6">
               <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <div className="bg-green-50 border-l-4 border-green-600 p-5 rounded-lg mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Job Order Information</h3>
-                  
-                  {/* Reference Number */}
-                  <div className="mb-4">
+                <div className="bg-green-50 border-l-4 border-green-600 p-5 rounded-lg space-y-4">
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Job Order Information
+                  </h3>
+
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Reference Number <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      value={jobOrderForm.referenceNumber}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, referenceNumber: e.target.value })}
-                      placeholder="Enter reference number (e.g., REF-2026-001)"
+                      value={jobOrderForm.jo_reference_number}
+                      onChange={(e) =>
+                        setJobOrderForm({
+                          ...jobOrderForm,
+                          jo_reference_number: e.target.value,
+                        })
+                      }
+                      placeholder="e.g., REF-2026-001"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 font-mono"
                     />
                   </div>
 
-                  {/* Company Name */}
-                  <div className="mb-4">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Name <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={jobOrderForm.companyName}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, companyName: e.target.value })}
-                      placeholder="Enter principal company name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                    />
-                  </div>
-
-                  {/* Company Contact Number */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Contact Number
-                    </label>
-                    <input
-                      type="tel"
-                      value={jobOrderForm.companyContactNumber}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, companyContactNumber: e.target.value })}
-                      placeholder="Enter contact number (e.g., +1-555-0123)"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                    />
-                  </div>
-
-                  {/* Company Representative */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Company Representative
-                    </label>
-                    <input
-                      type="text"
-                      value={jobOrderForm.companyRepresentative}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, companyRepresentative: e.target.value })}
-                      placeholder="Enter representative name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
-                    />
-                  </div>
-
-                  {/* Country Dropdown */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Country <span className="text-red-500">*</span>
+                      Company <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={jobOrderForm.country}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, country: e.target.value })}
+                      value={jobOrderForm.company_id}
+                      onChange={(e) => {
+                        const company = companies.find(
+                          (c) => c.company_id === Number(e.target.value),
+                        );
+                        setJobOrderForm({
+                          ...jobOrderForm,
+                          company_id: e.target.value,
+                          jo_country: company?.company_country || "",
+                        });
+                      }}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
                     >
-                      <option value="">Select a country</option>
-                      {companiesData.map((company) => (
-                        <option key={company.id} value={company.country}>
-                          {company.country} - {company.name}
+                      <option value="">Select a company</option>
+                      {companies.map((c) => (
+                        <option key={c.company_id} value={c.company_id}>
+                          {c.company_name} — {c.company_country}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Point Person Dropdown */}
-                  <div className="mb-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Country
+                    </label>
+                    <input
+                      type="text"
+                      value={jobOrderForm.jo_country}
+                      onChange={(e) =>
+                        setJobOrderForm({
+                          ...jobOrderForm,
+                          jo_country: e.target.value,
+                        })
+                      }
+                      placeholder="Auto-filled from company"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                    />
+                  </div>
+
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Point Person <span className="text-red-500">*</span>
                     </label>
                     <select
-                      value={jobOrderForm.pointPersonId}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, pointPersonId: e.target.value })}
+                      value={jobOrderForm.jo_created_by}
+                      onChange={(e) =>
+                        setJobOrderForm({
+                          ...jobOrderForm,
+                          jo_created_by: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
                     >
                       <option value="">Select a point person</option>
-                      {usersData
-                        .filter(user => user.status === 'Active')
-                        .map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.name} - {user.role}
-                          </option>
-                        ))}
+                      {employees.map((e) => (
+                        <option key={e.employee_id} value={e.employee_id}>
+                          {e.employee_first_name} {e.employee_last_name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
-                  {/* Deadline */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Application Deadline <span className="text-red-500">*</span>
+                      Application Deadline{" "}
+                      <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="date"
-                      value={jobOrderForm.deadline}
-                      onChange={(e) => setJobOrderForm({ ...jobOrderForm, deadline: e.target.value })}
+                      value={jobOrderForm.jo_deadline}
+                      onChange={(e) =>
+                        setJobOrderForm({
+                          ...jobOrderForm,
+                          jo_deadline: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
                     />
+                  </div>
+
+                  <div className="flex items-center space-x-6">
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={jobOrderForm.is_active}
+                        onChange={(e) =>
+                          setJobOrderForm({
+                            ...jobOrderForm,
+                            is_active: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 accent-green-600"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Active
+                      </span>
+                    </label>
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={jobOrderForm.is_posted}
+                        onChange={(e) =>
+                          setJobOrderForm({
+                            ...jobOrderForm,
+                            is_posted: e.target.checked,
+                          })
+                        }
+                        className="w-4 h-4 accent-green-600"
+                      />
+                      <span className="text-sm font-medium text-gray-700">
+                        Posted
+                      </span>
+                    </label>
                   </div>
                 </div>
               </div>
 
-              {/* Added Positions List */}
+              {/* Added positions preview */}
               {positions.length > 0 && (
                 <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                   <div className="bg-blue-50 border-l-4 border-blue-600 p-5 rounded-lg">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Added Positions ({positions.length})</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[600px] overflow-y-auto">
-                      {positions.map((pos) => (
-                        <div key={pos.tempId} className="bg-white rounded-2xl border-2 border-green-500 shadow-lg p-5 relative">
-                          {/* Icon and Status Badge */}
-                          <div className="flex items-start justify-between mb-4">
-                            <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
-                              <Users className="w-7 h-7 text-blue-600" />
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <span className="px-3 py-1 bg-green-100 text-green-700 text-sm font-semibold rounded-full">
-                                {pos.openPositions} Open
-                              </span>
-                              <button
-                                onClick={() => setPositions(positions.filter(p => p.tempId !== pos.tempId))}
-                                className="text-red-600 hover:text-red-800 transition-colors"
-                                title="Remove position"
-                              >
-                                <Trash2 className="w-5 h-5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* Job Title */}
-                          <h4 className="text-xl font-bold text-gray-900 mb-2">{pos.title}</h4>
-
-                          {/* Job Description */}
-                          <p className="text-gray-600 text-sm mb-4 line-clamp-2">{pos.description}</p>
-
-                          {/* Contract & Salary */}
-                          <div className="space-y-1 mb-4">
-                            <p className="text-sm">
-                              <span className="text-gray-500">Contract:</span> <span className="text-gray-900 font-medium">{pos.contractLength}</span>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Added Positions ({positions.length})
+                    </h3>
+                    <div className="space-y-3 max-h-80 overflow-y-auto">
+                      {positions.map((pos, i) => (
+                        <div
+                          key={i}
+                          className="bg-white rounded-lg border border-gray-200 p-4 flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-semibold text-gray-900">
+                              {pos.job_title}
                             </p>
-                            <p className="text-sm">
-                              <span className="text-gray-500">Salary:</span> <span className="text-gray-900 font-medium">{pos.salaryRange}</span>
+                            <p className="text-sm text-gray-500">
+                              {pos.job_category} • {pos.job_number_needed}{" "}
+                              needed • {pos.job_salary_range}
                             </p>
                           </div>
-
-                          {/* Applicants Stats */}
-                          <div className="flex items-center justify-between pt-3 border-t border-gray-200">
-                            <div>
-                              <p className="text-xs text-gray-500">Applicants</p>
-                              <p className="text-2xl font-bold text-gray-900">0</p>
-                            </div>
-                            <div>
-                              <p className="text-xs text-gray-500">Shortlisted</p>
-                              <p className="text-2xl font-bold text-purple-600">0</p>
-                            </div>
-                            <div className="text-gray-300">
-                              <ChevronRight className="w-5 h-5" />
-                            </div>
-                          </div>
+                          <button
+                            onClick={() =>
+                              setPositions(
+                                positions.filter((_, idx) => idx !== i),
+                              )
+                            }
+                            className="text-red-500 hover:text-red-700"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
                         </div>
                       ))}
                     </div>
@@ -1207,220 +1410,184 @@ export default function JobOrders() {
               )}
             </div>
 
-            {/* Right Column - Add Position Form */}
-            <div className="space-y-6">
-              <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                <div className="bg-purple-50 border-l-4 border-purple-600 p-5 rounded-lg">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Add Position</h3>
-                  
-                  {/* Position Title */}
-                  <div className="mb-4">
+            {/* Right - Add Position form */}
+            <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+              <div className="bg-purple-50 border-l-4 border-purple-600 p-5 rounded-lg space-y-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Add Position
+                </h3>
+
+                {[
+                  {
+                    label: "Position Title",
+                    key: "job_title",
+                    type: "input",
+                    placeholder: "e.g., Software Engineer",
+                  },
+                  {
+                    label: "Description",
+                    key: "job_description",
+                    type: "textarea",
+                    placeholder: "Describe responsibilities...",
+                  },
+                  {
+                    label: "Requirements",
+                    key: "job_requirements",
+                    type: "textarea",
+                    placeholder: "List qualifications...",
+                  },
+                  {
+                    label: "Contract Length",
+                    key: "job_contract_length",
+                    type: "input",
+                    placeholder: "e.g., 6 months",
+                  },
+                  {
+                    label: "Salary Range",
+                    key: "job_salary_range",
+                    type: "input",
+                    placeholder: "e.g., $3,000-$5,000/month",
+                  },
+                ].map(({ label, key, type, placeholder }) => (
+                  <div key={key}>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Position Title <span className="text-red-500">*</span>
+                      {label} <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={currentPosition.title}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, title: e.target.value })}
-                      placeholder="Enter position title (e.g., Software Engineer)"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-                    />
+                    {type === "textarea" ? (
+                      <textarea
+                        value={(currentPosition as any)[key]}
+                        onChange={(e) =>
+                          setCurrentPosition({
+                            ...currentPosition,
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={placeholder}
+                        rows={4}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600 resize-none"
+                      />
+                    ) : (
+                      <input
+                        type="text"
+                        value={(currentPosition as any)[key]}
+                        onChange={(e) =>
+                          setCurrentPosition({
+                            ...currentPosition,
+                            [key]: e.target.value,
+                          })
+                        }
+                        placeholder={placeholder}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
+                      />
+                    )}
                   </div>
+                ))}
 
-                  {/* Open Positions */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Number of Open Positions <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={currentPosition.openPositions}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, openPositions: parseInt(e.target.value) || 1 })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  {/* Description */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Position Description <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={currentPosition.description}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, description: e.target.value })}
-                      placeholder="Enter detailed description of the position, responsibilities, and job duties..."
-                      rows={8}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600 resize-none"
-                    />
-                  </div>
-
-                  {/* Requirements */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Position Requirements <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      value={currentPosition.requirements}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, requirements: e.target.value })}
-                      placeholder="Enter requirements such as qualifications, skills, experience, education, etc..."
-                      rows={8}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600 resize-none"
-                    />
-                  </div>
-
-                  {/* Contract Length */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Contract Length <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={currentPosition.contractLength}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, contractLength: e.target.value })}
-                      placeholder="e.g., 3 months, 6 months"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  {/* Salary Range */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Salary Range <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={currentPosition.salaryRange}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, salaryRange: e.target.value })}
-                      placeholder="e.g., $3,000 - $5,000/month"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-                    />
-                  </div>
-
-                  {/* Job Category */}
-                  <div className="mb-4">
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Job Category <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      value={currentPosition.category}
-                      onChange={(e) => setCurrentPosition({ ...currentPosition, category: e.target.value })}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
-                    >
-                      <option value="">Select a category</option>
-                      <option value="Engineering">Engineering</option>
-                      <option value="Design">Design</option>
-                      <option value="Marketing">Marketing</option>
-                      <option value="Sales">Sales</option>
-                      <option value="Operations">Operations</option>
-                      <option value="Finance">Finance</option>
-                      <option value="Human Resources">Human Resources</option>
-                      <option value="Customer Support">Customer Support</option>
-                      <option value="Product Management">Product Management</option>
-                      <option value="Other">Other</option>
-                    </select>
-                  </div>
-
-                  {/* Add Position Button */}
-                  <button
-                    onClick={() => {
-                      // Validate position fields
-                      if (!currentPosition.title || !currentPosition.description || !currentPosition.requirements || !currentPosition.contractLength || !currentPosition.salaryRange || !currentPosition.category) {
-                        alert('Please fill in all position fields');
-                        return;
-                      }
-
-                      // Add position to list
-                      setPositions([...positions, { ...currentPosition, tempId: Date.now() }]);
-                      
-                      // Reset current position form
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Number Needed <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={currentPosition.job_number_needed}
+                    onChange={(e) =>
                       setCurrentPosition({
-                        tempId: 0,
-                        title: '',
-                        description: '',
-                        requirements: '',
-                        openPositions: 1,
-                        contractLength: '',
-                        salaryRange: ''
-                      });
-                    }}
-                    className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors font-semibold"
-                  >
-                    <Plus className="w-5 h-5" />
-                    <span>Add Position to Job Order</span>
-                  </button>
+                        ...currentPosition,
+                        job_number_needed: parseInt(e.target.value) || 1,
+                      })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
+                  />
                 </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">
+                    Job Category <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    value={currentPosition.job_category}
+                    onChange={(e) =>
+                      setCurrentPosition({
+                        ...currentPosition,
+                        job_category: e.target.value,
+                      })
+                    }
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-purple-600"
+                  >
+                    <option value="">Select a category</option>
+                    {[
+                      "Construction",
+                      "Healthcare",
+                      "Hospitality",
+                      "Manufacturing",
+                      "Technology",
+                      "Agriculture",
+                      "Transportation",
+                      "Other",
+                    ].map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <button
+                  onClick={() => {
+                    if (
+                      !currentPosition.job_title ||
+                      !currentPosition.job_requirements ||
+                      !currentPosition.job_contract_length ||
+                      !currentPosition.job_salary_range ||
+                      !currentPosition.job_category
+                    ) {
+                      alert("Please fill in all position fields");
+                      return;
+                    }
+                    setPositions([...positions, { ...currentPosition }]);
+                    setCurrentPosition({
+                      job_title: "",
+                      job_description: "",
+                      job_requirements: "",
+                      job_number_needed: 1,
+                      job_contract_length: "",
+                      job_salary_range: "",
+                      job_category: "",
+                    });
+                  }}
+                  className="w-full flex items-center justify-center space-x-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add Position to Job Order</span>
+                </button>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Form Footer - Sticky */}
         <div className="bg-white border-t border-gray-200 px-6 py-4 shadow-lg">
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <div className="text-gray-700">
-              <span className="font-semibold text-lg text-gray-900">{positions.length}</span> 
-              <span className="text-sm ml-1">position{positions.length !== 1 ? 's' : ''} added</span>
-            </div>
+            <p className="text-gray-700">
+              <span className="font-semibold text-lg">{positions.length}</span>{" "}
+              position{positions.length !== 1 ? "s" : ""} added
+            </p>
             <div className="flex space-x-3">
               <button
                 onClick={() => {
-                  setViewMode('list');
+                  setViewMode("list");
                   resetForm();
                 }}
-                className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
+                className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
-                onClick={() => {
-                  // Validate job order fields
-                  if (!jobOrderForm.referenceNumber || !jobOrderForm.companyName || !jobOrderForm.pointPersonId || !jobOrderForm.deadline) {
-                    alert('Please fill in all required fields: reference number, company name, point person, and deadline');
-                    return;
-                  }
-
-                  // Validate at least one position
-                  if (positions.length === 0) {
-                    alert('Please add at least one position to the job order');
-                    return;
-                  }
-
-                  // Create new job order with all positions
-                  const newJobOrder: JobOrder = {
-                    id: jobOrders.length + 1,
-                    jobOrderCode: `JO-2026-${String(jobOrders.length + 1).padStart(3, '0')}`,
-                    jobOrderNumber: String(jobOrders.length + 1).padStart(3, '0'),
-                    referenceNumber: jobOrderForm.referenceNumber,
-                    principalCompanyName: jobOrderForm.companyName,
-                    companyContactNumber: jobOrderForm.companyContactNumber,
-                    companyRepresentative: jobOrderForm.companyRepresentative,
-                    country: jobOrderForm.country,
-                    pointPersonId: Number(jobOrderForm.pointPersonId),
-                    status: 'Open',
-                    dateCreated: new Date().toISOString().split('T')[0],
-                    deadline: jobOrderForm.deadline,
-                    positions: positions.map((pos, index) => ({
-                      id: Date.now() + index,
-                      title: pos.title,
-                      openPositions: pos.openPositions,
-                      description: pos.description,
-                      requirements: pos.requirements,
-                      contractLength: pos.contractLength,
-                      salaryRange: pos.salaryRange,
-                      applicants: []
-                    }))
-                  };
-
-                  setJobOrders([newJobOrder, ...jobOrders]);
-                  setViewMode('list');
-                  resetForm();
-                  
-                  alert(`Job Order posted successfully with ${positions.length} position${positions.length !== 1 ? 's' : ''}!`);
-                }}
-                className="px-8 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors font-semibold"
+                onClick={handlePostJobOrder}
+                disabled={saving}
+                className="px-8 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold disabled:opacity-50"
               >
-                Post Job Order
+                {saving ? "Posting..." : "Post Job Order"}
               </button>
             </div>
           </div>
@@ -1432,27 +1599,47 @@ export default function JobOrders() {
   // List View
   return (
     <div className="space-y-6">
-      {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-green-600">
-          <p className="text-xs text-gray-500 mb-1">Total Job Orders</p>
-          <p className="text-2xl font-bold text-gray-900">{totalJobOrders}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-blue-600">
-          <p className="text-xs text-gray-500 mb-1">Open Job Orders</p>
-          <p className="text-2xl font-bold text-gray-900">{openJobs}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-yellow-600">
-          <p className="text-xs text-gray-500 mb-1">Total Positions</p>
-          <p className="text-2xl font-bold text-gray-900">{totalPositions}</p>
-        </div>
-        <div className="bg-white rounded-lg shadow-md p-4 border-l-4 border-purple-600">
-          <p className="text-xs text-gray-500 mb-1">Total Applicants</p>
-          <p className="text-2xl font-bold text-gray-900">{totalApplicants}</p>
-        </div>
+        {[
+          {
+            label: "Total Job Orders",
+            value: totalJobOrders,
+            color: "border-green-600",
+          },
+          {
+            label: "Active Job Orders",
+            value: activeJobs,
+            color: "border-blue-600",
+          },
+          {
+            label: "Total Positions",
+            value: totalPositions,
+            color: "border-yellow-600",
+          },
+          {
+            label: "Total Applicants",
+            value: totalApplicants,
+            color: "border-purple-600",
+          },
+        ].map(({ label, value, color }) => (
+          <div
+            key={label}
+            className={`rounded-lg shadow-md p-4 border-l-4 ${color} ${darkMode ? "bg-gray-800" : "bg-white"}`}
+          >
+            <p
+              className={`text-xs mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+            >
+              {label}
+            </p>
+            <p
+              className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+            >
+              {value}
+            </p>
+          </div>
+        ))}
       </div>
 
-      {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
@@ -1461,7 +1648,7 @@ export default function JobOrders() {
             placeholder="Search by job order, company, or position..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "border-gray-300"}`}
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -1469,16 +1656,16 @@ export default function JobOrders() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+            className={`px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
           >
             <option>All</option>
-            <option>Open</option>
+            <option>Active</option>
             <option>Closed</option>
-            <option>On Hold</option>
+            <option>Draft</option>
           </select>
         </div>
         <button
-          onClick={() => setViewMode('form')}
+          onClick={() => setViewMode("form")}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -1490,351 +1677,111 @@ export default function JobOrders() {
         </button>
       </div>
 
-      {/* Job Orders List */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <div className="divide-y divide-gray-200">
-          {filteredJobOrders.map((jobOrder) => {
-            const totalJobApplicants = jobOrder.positions.reduce((sum, pos) => sum + pos.applicants.length, 0);
-            const totalOpenPositions = jobOrder.positions.reduce((sum, pos) => sum + pos.openPositions, 0);
+      <div
+        className={`rounded-xl shadow-md overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
+        {filteredJobOrders.length === 0 ? (
+          <p
+            className={`text-center py-8 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+          >
+            No job orders found.
+          </p>
+        ) : (
+          <div
+            className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
+          >
+            {filteredJobOrders.map((jo) => {
+              const totalJobApplicants = jo.positions.reduce(
+                (sum, pos) => sum + pos.applicants.length,
+                0,
+              );
+              const totalNeeded = jo.positions.reduce(
+                (sum, pos) => sum + pos.job_number_needed,
+                0,
+              );
 
-            return (
-              <div
-                key={jobOrder.id}
-                onClick={() => {
-                  setSelectedJobOrder(jobOrder);
-                  setViewMode('positions');
-                }}
-                className="flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer transition-colors"
-              >
-                <div className="flex items-center space-x-4 flex-1">
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-6 h-6 text-green-600" />
-                  </div>
-                  <div>
-                    <h3 className="font-mono font-semibold text-gray-900">{jobOrder.jobOrderCode}</h3>
-                    <p className="text-sm text-gray-600">{jobOrder.principalCompanyName}</p>
-                    <div className="flex items-center space-x-2 mt-1">
-                      <div className="relative inline-block">
-                        {editingStatus === jobOrder.id ? (
-                          <select
-                            value={jobOrder.status}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              updateJobOrderStatus(jobOrder.id, e.target.value as 'Active' | 'Closed' | 'On Hold');
-                            }}
-                            onClick={(e) => e.stopPropagation()}
-                            onBlur={() => setEditingStatus(null)}
-                            autoFocus
-                            className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none ${getStatusColor(jobOrder.status)}`}
-                          >
-                            <option value="Active">Active</option>
-                            <option value="Closed">Closed</option>
-                            <option value="On Hold">On Hold</option>
-                          </select>
-                        ) : (
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingStatus(jobOrder.id);
-                            }}
-                            className={`text-xs px-2 py-1 rounded-full flex items-center space-x-1 hover:opacity-80 transition-opacity ${getStatusColor(jobOrder.status)}`}
-                          >
-                            <span>{jobOrder.status}</span>
-                            <ChevronDown className="w-3 h-3" />
-                          </button>
-                        )}
+              return (
+                <div
+                  key={jo.jo_id}
+                  onClick={() => {
+                    setSelectedJobOrder(jo);
+                    setViewMode("positions");
+                  }}
+                  className={`flex items-center justify-between p-4 cursor-pointer transition-colors ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                >
+                  <div className="flex items-center space-x-4 flex-1">
+                    <div
+                      className={`w-12 h-12 rounded-lg flex items-center justify-center ${darkMode ? "bg-green-900" : "bg-green-100"}`}
+                    >
+                      <Briefcase className="w-6 h-6 text-green-600" />
+                    </div>
+                    <div>
+                      <h3
+                        className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                      >
+                        {jo.jo_reference_number}
+                      </h3>
+                      <p
+                        className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                      >
+                        {jo.company_name}
+                      </p>
+                      <div className="flex items-center space-x-2 mt-1">
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(jo.is_active, jo.is_posted)}`}
+                        >
+                          {getStatusLabel(jo.is_active, jo.is_posted)}
+                        </span>
+                        <span
+                          className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}
+                        >
+                          {jo.positions.length} Position
+                          {jo.positions.length !== 1 ? "s" : ""}
+                        </span>
                       </div>
-                      <span className="text-xs text-gray-500">
-                        {jobOrder.positions.length} Position{jobOrder.positions.length !== 1 ? 's' : ''}
-                      </span>
                     </div>
                   </div>
-                </div>
-                <div className="flex items-center space-x-6">
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs text-gray-500">Open Positions</p>
-                    <p className="text-lg font-bold text-green-600">{totalOpenPositions}</p>
-                  </div>
-                  <div className="text-right hidden md:block">
-                    <p className="text-xs text-gray-500">Applicants</p>
-                    <p className="text-lg font-bold text-blue-600">{totalJobApplicants}</p>
-                  </div>
-                  <div className="text-right hidden lg:block">
-                    <p className="text-xs text-gray-500">Deadline</p>
-                    <p className="text-sm font-medium text-gray-900">{jobOrder.deadline}</p>
-                  </div>
-                  {jobOrder.pointPersonId && (
-                    <div className="text-right hidden xl:block">
-                      <p className="text-xs text-gray-500">Point Person</p>
-                      <p className="text-sm font-medium text-gray-900">
-                        {usersData.find(u => u.id === jobOrder.pointPersonId)?.name || 'N/A'}
+                  <div className="flex items-center space-x-6">
+                    <div className="text-right hidden sm:block">
+                      <p
+                        className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        Slots Needed
+                      </p>
+                      <p className="text-lg font-bold text-green-600">
+                        {totalNeeded}
                       </p>
                     </div>
-                  )}
-                  <ChevronRight className="w-5 h-5 text-gray-400" />
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Applicants Full Screen Modal */}
-      {selectedPosition && (
-        <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col">
-            {/* Modal Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <div>
-                <div className="flex items-center space-x-3">
-                  <h2 className="text-2xl font-bold text-gray-900">{selectedPosition.position.title}</h2>
-                  <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
-                    selectedPosition.position.openPositions > 0 ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                  }`}>
-                    {selectedPosition.position.openPositions} Open Position{selectedPosition.position.openPositions !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-4 mt-2">
-                  <p className="text-sm text-gray-600">
-                    <span className="font-semibold">Job Order:</span> {selectedPosition.jobOrder.jobOrderCode}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-semibold">Company:</span> {selectedPosition.jobOrder.principalCompanyName}
-                  </p>
-                  <p className="text-sm text-gray-600">
-                    <span className="font-semibold">Deadline:</span> {selectedPosition.jobOrder.deadline}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setSelectedPosition(null)}
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X className="w-8 h-8" />
-              </button>
-            </div>
-
-            {/* Applicants Stats */}
-            <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
-              {['Applied', 'AI-screened', 'Shortlist', 'Scheduled', 'Accepted', 'Rejected'].map((status) => {
-                const count = selectedPosition.position.applicants.filter(a => a.status === status).length;
-                return (
-                  <div key={status} className="bg-white rounded-lg shadow-sm p-3">
-                    <p className="text-xs text-gray-500 mb-1">{status}</p>
-                    <p className="text-xl font-bold text-gray-900">{count}</p>
+                    <div className="text-right hidden md:block">
+                      <p
+                        className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        Applicants
+                      </p>
+                      <p className="text-lg font-bold text-blue-600">
+                        {totalJobApplicants}
+                      </p>
+                    </div>
+                    <div className="text-right hidden lg:block">
+                      <p
+                        className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        Deadline
+                      </p>
+                      <p
+                        className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                      >
+                        {jo.jo_deadline}
+                      </p>
+                    </div>
+                    <ChevronRight className="w-5 h-5 text-gray-400" />
                   </div>
-                );
-              })}
-            </div>
-
-            {/* Position Details */}
-            <div className="px-6 py-4 bg-white border-b border-gray-200">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Description */}
-                {selectedPosition.position.description && (
-                  <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-blue-900 mb-2">Position Description</h3>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {selectedPosition.position.description}
-                    </p>
-                  </div>
-                )}
-                
-                {/* Requirements */}
-                {selectedPosition.position.requirements && (
-                  <div className="bg-purple-50 border-l-4 border-purple-600 rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-purple-900 mb-2">Position Requirements</h3>
-                    <p className="text-sm text-gray-700 leading-relaxed">
-                      {selectedPosition.position.requirements}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Search and Filters */}
-            <div className="px-6 py-4 bg-white border-b border-gray-200">
-              <div className="flex flex-col sm:flex-row gap-3">
-                <div className="relative flex-1">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-                  <input
-                    type="text"
-                    placeholder="Search applicants by name..."
-                    value={applicantSearchTerm}
-                    onChange={(e) => setApplicantSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
-                  />
                 </div>
-                <div className="flex items-center space-x-2">
-                  <Filter className="w-4 h-4 text-gray-500" />
-                  <select
-                    value={applicantFilterStatus}
-                    onChange={(e) => setApplicantFilterStatus(e.target.value)}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
-                  >
-                    <option value="All">All Status</option>
-                    <option value="applied">applied</option>
-                    <option value="AI-screened">AI-screened</option>
-                    <option value="Shortlist">Shortlist</option>
-                    <option value="Scheduled">Scheduled</option>
-                    <option value="Accepted">Accepted</option>
-                    <option value="Rejected">Rejected</option>
-                  </select>
-                </div>
-                <select
-                  value={applicantScoreSort}
-                  onChange={(e) => setApplicantScoreSort(e.target.value)}
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 text-sm"
-                >
-                  <option value="none">Resume Score (Default)</option>
-                  <option value="high-to-low">Resume Score (High to Low)</option>
-                  <option value="low-to-high">Resume Score (Low to High)</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Applicants Table */}
-            <div className="flex-1 overflow-auto p-6">
-              <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-                <table className="w-full">
-                  <thead className="bg-green-50 sticky top-0">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Name
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Resume Score
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Job Fit Score
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Status
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Applied Date
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        Rejection Reason
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {(() => {
-                      // Filter applicants
-                      let filteredApplicants = selectedPosition.position.applicants.filter(applicant => {
-                        const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                        const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                        return matchesSearch && matchesStatus;
-                      });
-
-                      // Sort applicants by resume score
-                      if (applicantScoreSort === 'high-to-low') {
-                        filteredApplicants = [...filteredApplicants].sort((a, b) => b.resumeScore - a.resumeScore);
-                      } else if (applicantScoreSort === 'low-to-high') {
-                        filteredApplicants = [...filteredApplicants].sort((a, b) => a.resumeScore - b.resumeScore);
-                      }
-
-                      if (filteredApplicants.length === 0) {
-                        return (
-                          <tr>
-                            <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                              No applicants found
-                            </td>
-                          </tr>
-                        );
-                      }
-
-                      return filteredApplicants.map((applicant) => (
-                        <tr key={applicant.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className="flex items-center">
-                              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                                <span className="text-green-600 font-semibold text-sm">
-                                  {applicant.name.split(' ').map(n => n[0]).join('')}
-                                </span>
-                              </div>
-                              <div className="text-sm font-medium text-gray-900">{applicant.name}</div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${getScoreColor(applicant.resumeScore)}`}>
-                              {applicant.resumeScore}%
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <div className={`text-sm ${getScoreColor(applicant.jobFitScore || 0)}`}>
-                              {applicant.jobFitScore || 0}%
-                            </div>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap">
-                            <select
-                              value={applicant.status}
-                              onChange={(e) => handleStatusChange(applicant.id, e.target.value)}
-                              className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.status)}`}
-                            >
-                              <option value="Applied">Applied</option>
-                              <option value="AI-screened">AI-screened</option>
-                              <option value="Shortlist">Shortlist</option>
-                              <option value="Scheduled">Scheduled</option>
-                              <option value="Accepted">Accepted</option>
-                              <option value="Rejected">Rejected</option>
-                            </select>
-                          </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {applicant.appliedDate}
-                          </td>
-                          <td className="px-6 py-4">
-                            {applicant.status === 'Rejected' && applicant.rejectionReason ? (
-                              <div className="text-sm text-red-800 max-w-md">
-                                {applicant.rejectionReason}
-                              </div>
-                            ) : (
-                              <span className="text-sm text-gray-400">—</span>
-                            )}
-                          </td>
-                        </tr>
-                      ));
-                    })()}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Modal Footer */}
-            <div className="flex justify-between items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
-              <div className="text-sm text-gray-600">
-                Total: <span className="font-semibold">{(() => {
-                  const filtered = selectedPosition.position.applicants.filter(applicant => {
-                    const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                    const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                    return matchesSearch && matchesStatus;
-                  });
-                  return filtered.length;
-                })()}</span> applicant{(() => {
-                  const filtered = selectedPosition.position.applicants.filter(applicant => {
-                    const matchesSearch = applicant.name.toLowerCase().includes(applicantSearchTerm.toLowerCase());
-                    const matchesStatus = applicantFilterStatus === 'All' || applicant.status === applicantFilterStatus;
-                    return matchesSearch && matchesStatus;
-                  });
-                  return filtered.length !== 1 ? 's' : '';
-                })()}
-              </div>
-              <div className="flex space-x-3">
-                <button
-                  onClick={() => setSelectedPosition(null)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                >
-                  Close
-                </button>
-                <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                  Export Applicants
-                </button>
-              </div>
-            </div>
+              );
+            })}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
