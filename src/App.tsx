@@ -1,29 +1,35 @@
-import { useState } from 'react';
-import LoginPage from './components/LoginPage';
-import DashboardLayout from './components/DashboardLayout';
-import { JobOrdersProvider } from './contexts/JobOrdersContext';
+import { useState } from "react";
+import LoginPage from "./components/LoginPage";
+import DashboardLayout from "./components/DashboardLayout";
+
+interface AdminUser {
+  admin_acc_id: number;
+  admin_acc_username: string;
+  employee_id: number;
+  t_employee: {
+    employee_first_name: string;
+    employee_last_name: string;
+    employee_email: string;
+    t_role: {
+      role_name: string;
+    };
+  };
+}
 
 export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [adminUser, setAdminUser] = useState<AdminUser | null>(null);
 
-  const handleLogin = (username, password) => {
-    // Mock authentication
-    if (username && password) {
-      setIsLoggedIn(true);
-    }
+  const handleLogin = (adminData: AdminUser) => {
+    setAdminUser(adminData);
   };
 
   const handleLogout = () => {
-    setIsLoggedIn(false);
+    setAdminUser(null);
   };
 
-  if (!isLoggedIn) {
+  if (!adminUser) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  return (
-    <JobOrdersProvider>
-      <DashboardLayout onLogout={handleLogout} />
-    </JobOrdersProvider>
-  );
+  return <DashboardLayout adminUser={adminUser} onLogout={handleLogout} />;
 }
