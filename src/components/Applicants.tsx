@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Search,
   Download,
@@ -8,188 +8,152 @@ import {
   Award,
   BookOpen,
 } from "lucide-react";
+import { supabase } from "./supabaseClient";
 
 interface Applicant {
-  id: number;
-  referenceNumber: string;
-  name: string;
-  jobOrder: string;
+  application_id: number;
+  applicant_id: number;
+  app_first_name: string;
+  app_last_name: string;
+  app_middle_name: string;
+  app_email: string;
+  application_current_status: string;
+  job_fit_score: number;
+  resume_score: number;
+  applied_date: string;
   position: string;
-  resumeScore: number;
-  status:
-    | "Applied"
-    | "AI-screened"
-    | "Shortlist"
-    | "Scheduled"
-    | "Accepted"
-    | "Rejected";
-  meetingLink: string;
-  rejectionReason?: string;
-  appliedDate: string;
-  experience: string;
+  job_order_ref: string;
   skills: string[];
   certifications: string[];
+  experience: string[];
 }
 
-export default function Applicants() {
+export default function Applicants({ darkMode }: { darkMode: boolean }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] =
-    useState<string>("All");
-  const [selectedApplicant, setSelectedApplicant] =
-    useState<Applicant | null>(null);
+  const [filterStatus, setFilterStatus] = useState("All");
+  const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(
+    null,
+  );
+  const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [applicants, setApplicants] = useState<Applicant[]>([
-    {
-      id: 1,
-      referenceNumber: "REF-001",
-      name: "John Doe",
-      jobOrder: "JO-2026-001",
-      position: "Software Engineer",
-      resumeScore: 85,
-      status: "Shortlist",
-      meetingLink: "https://meet.example.com/abc123",
-      appliedDate: "2026-01-15",
-      experience: "5 years",
-      skills: ["JavaScript", "Python", "React"],
-      certifications: ["AWS Certified Developer"],
-    },
-    {
-      id: 2,
-      referenceNumber: "REF-002",
-      name: "Jane Smith",
-      jobOrder: "JO-2026-002",
-      position: "Product Manager",
-      resumeScore: 92,
-      status: "Scheduled",
-      meetingLink: "https://meet.example.com/xyz789",
-      appliedDate: "2026-01-14",
-      experience: "3 years",
-      skills: ["Agile", "Scrum", "Product Management"],
-      certifications: ["PMP"],
-    },
-    {
-      id: 3,
-      referenceNumber: "REF-003",
-      name: "Mike Johnson",
-      jobOrder: "JO-2026-001",
-      position: "Software Engineer",
-      resumeScore: 78,
-      status: "AI-screened",
-      meetingLink: "",
-      appliedDate: "2026-01-13",
-      experience: "4 years",
-      skills: ["Java", "Spring", "Docker"],
-      certifications: ["Oracle Certified Professional"],
-    },
-    {
-      id: 4,
-      referenceNumber: "REF-004",
-      name: "Sarah Williams",
-      jobOrder: "JO-2026-003",
-      position: "Data Analyst",
-      resumeScore: 65,
-      status: "Rejected",
-      meetingLink: "",
-      rejectionReason:
-        "Does not meet minimum experience requirements (5+ years required)",
-      appliedDate: "2026-01-12",
-      experience: "2 years",
-      skills: ["SQL", "Excel", "Tableau"],
-      certifications: ["Certified Data Analyst"],
-    },
-    {
-      id: 5,
-      referenceNumber: "REF-005",
-      name: "David Brown",
-      jobOrder: "JO-2026-004",
-      position: "DevOps Engineer",
-      resumeScore: 88,
-      status: "Accepted",
-      meetingLink: "https://meet.example.com/def456",
-      appliedDate: "2026-01-11",
-      experience: "6 years",
-      skills: ["AWS", "Kubernetes", "Terraform"],
-      certifications: ["AWS Certified DevOps Engineer"],
-    },
-    {
-      id: 6,
-      referenceNumber: "REF-006",
-      name: "Emily Davis",
-      jobOrder: "JO-2026-002",
-      position: "Product Manager",
-      resumeScore: 70,
-      status: "applied",
-      meetingLink: "",
-      appliedDate: "2026-01-10",
-      experience: "1 year",
-      skills: ["Agile", "Scrum", "Product Management"],
-      certifications: ["PMP"],
-    },
-    {
-      id: 7,
-      referenceNumber: "REF-007",
-      name: "Robert Miller",
-      jobOrder: "JO-2026-005",
-      position: "UX Designer",
-      resumeScore: 55,
-      status: "Rejected",
-      meetingLink: "",
-      rejectionReason:
-        "Portfolio does not demonstrate required design skills for enterprise applications",
-      appliedDate: "2026-01-09",
-      experience: "3 years",
-      skills: ["Sketch", "Figma", "Adobe XD"],
-      certifications: ["Certified UX Designer"],
-    },
-    {
-      id: 8,
-      referenceNumber: "REF-008",
-      name: "Lisa Anderson",
-      jobOrder: "JO-2026-001",
-      position: "Software Engineer",
-      resumeScore: 95,
-      status: "Scheduled",
-      meetingLink: "https://meet.example.com/ghi789",
-      appliedDate: "2026-01-08",
-      experience: "5 years",
-      skills: ["JavaScript", "Python", "React"],
-      certifications: ["AWS Certified Developer"],
-    },
-  ]);
+  const statuses = [
+    "Applied",
+    "AI-screened",
+    "Shortlist",
+    "Scheduled",
+    "Accepted",
+    "Rejected",
+  ];
 
-  const handleStatusChange = (
-    id: number,
-    newStatus: Applicant["status"],
+  useEffect(() => {
+    fetchApplicants();
+  }, []);
+
+  const fetchApplicants = async () => {
+    setLoading(true);
+    setError("");
+
+    const { data, error: dbError } = await supabase.from("t_applications")
+      .select(`
+        application_id,
+        application_current_status,
+        job_fit_score,
+        resume_score,
+        t_applicant(
+          applicant_id,
+          app_first_name,
+          app_middle_name,
+          app_last_name,
+          app_email
+        ),
+        t_job_positions(
+          job_title,
+          t_job_orders(jo_reference_number)
+        ),
+        t_resume(
+          resume_id,
+          t_resume_skills(rs_skill_name, rs_proficiency_level),
+          t_certificate_training(cert_certificate_title),
+          t_work_experience(exp_position, exp_company, exp_start_date, exp_end_date)
+        ),
+        applied_date:t_date!t_applications_applied_date_id_fkey(full_date)
+      `);
+
+    if (dbError) {
+      console.error(dbError);
+      setError("Failed to load applicants.");
+      setLoading(false);
+      return;
+    }
+
+    const mapped: Applicant[] = (data || []).map((row: any) => ({
+      application_id: row.application_id,
+      applicant_id: row.t_applicant?.applicant_id,
+      app_first_name: row.t_applicant?.app_first_name || "",
+      app_middle_name: row.t_applicant?.app_middle_name || "",
+      app_last_name: row.t_applicant?.app_last_name || "",
+      app_email: row.t_applicant?.app_email || "",
+      application_current_status: row.application_current_status || "Applied",
+      job_fit_score: row.job_fit_score || 0,
+      resume_score: row.resume_score || 0,
+      applied_date: row.applied_date?.full_date || "",
+      position: row.t_job_positions?.job_title || "",
+      job_order_ref:
+        row.t_job_positions?.t_job_orders?.jo_reference_number || "",
+      skills: (row.t_resume?.t_resume_skills || []).map(
+        (s: any) => s.rs_skill_name,
+      ),
+      certifications: (row.t_resume?.t_certificate_training || []).map(
+        (c: any) => c.cert_certificate_title,
+      ),
+      experience: (row.t_resume?.t_work_experience || []).map(
+        (w: any) => `${w.exp_position} at ${w.exp_company}`,
+      ),
+    }));
+
+    setApplicants(mapped);
+    setLoading(false);
+  };
+
+  const handleStatusChange = async (
+    application_id: number,
+    newStatus: string,
   ) => {
+    const { error: updateError } = await supabase
+      .from("t_applications")
+      .update({ application_current_status: newStatus })
+      .eq("application_id", application_id);
+
+    if (updateError) {
+      alert("Failed to update status.");
+      return;
+    }
+
     setApplicants((prev) =>
-      prev.map((applicant) =>
-        applicant.id === id
-          ? { ...applicant, status: newStatus }
-          : applicant,
+      prev.map((a) =>
+        a.application_id === application_id
+          ? { ...a, application_current_status: newStatus }
+          : a,
       ),
     );
   };
 
-  const filteredApplicants = applicants.filter((applicant) => {
+  const filteredApplicants = applicants.filter((a) => {
+    const fullName = `${a.app_first_name} ${a.app_last_name}`.toLowerCase();
     const matchesSearch =
-      applicant.name
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      applicant.position
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      applicant.jobOrder
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase());
+      fullName.includes(searchTerm.toLowerCase()) ||
+      a.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      a.job_order_ref.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesFilter =
-      filterStatus === "All" ||
-      applicant.status === filterStatus;
+      filterStatus === "All" || a.application_current_status === filterStatus;
     return matchesSearch && matchesFilter;
   });
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "applied":
+      case "Applied":
         return "bg-gray-100 text-gray-800";
       case "AI-screened":
         return "bg-blue-100 text-blue-800";
@@ -212,30 +176,47 @@ export default function Applicants() {
     return "text-red-600 font-bold";
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p
+          className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+        >
+          Loading applicants...
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[
-          "Applied",
-          "AI-screened",
-          "Shortlist",
-          "Scheduled",
-          "Accepted",
-          "Rejected",
-        ].map((status) => {
+        {statuses.map((status) => {
           const count = applicants.filter(
-            (a) => a.status === status,
+            (a) => a.application_current_status === status,
           ).length;
           return (
             <div
               key={status}
-              className="bg-white rounded-lg shadow-md p-4"
+              className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}
             >
-              <p className="text-xs text-gray-500 mb-1">
+              <p
+                className={`text-xs mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+              >
                 {status}
               </p>
-              <p className="text-2xl font-bold text-gray-900">
+              <p
+                className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
                 {count}
               </p>
             </div>
@@ -252,7 +233,11 @@ export default function Applicants() {
             placeholder="Search by name, position, or job order..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+              darkMode
+                ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400"
+                : "border-gray-300"
+            }`}
           />
         </div>
         <div className="flex items-center space-x-2">
@@ -260,15 +245,16 @@ export default function Applicants() {
           <select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+            className={`px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+              darkMode
+                ? "bg-gray-700 border-gray-600 text-white"
+                : "border-gray-300"
+            }`}
           >
             <option>All</option>
-            <option>applied</option>
-            <option>AI-screened</option>
-            <option>Shortlist</option>
-            <option>Scheduled</option>
-            <option>Accepted</option>
-            <option>Rejected</option>
+            {statuses.map((s) => (
+              <option key={s}>{s}</option>
+            ))}
           </select>
         </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
@@ -278,128 +264,118 @@ export default function Applicants() {
       </div>
 
       {/* Applicants Table */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      <div
+        className={`rounded-xl shadow-md overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className="bg-green-50">
+            <thead className={darkMode ? "bg-gray-700" : "bg-green-50"}>
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Reference No.
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Name
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Job Order
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Position
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Resume Score
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Applied Date
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Rejection Reason
-                </th>
+                {[
+                  "Name",
+                  "Job Order",
+                  "Position",
+                  "Resume Score",
+                  "Job Fit Score",
+                  "Status",
+                  "Applied Date",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-500"}`}
+                  >
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {filteredApplicants.map((applicant) => (
-                <tr
-                  key={applicant.id}
-                  className="hover:bg-gray-50 cursor-pointer transition-colors"
-                  onClick={() =>
-                    setSelectedApplicant(applicant)
-                  }
-                >
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-mono font-semibold">
-                      {applicant.referenceNumber}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
-                        <span className="text-green-600 font-semibold">
-                          {applicant.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </span>
-                      </div>
-                      <div className="text-sm font-medium text-gray-900">
-                        {applicant.name}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900 font-mono">
-                      {applicant.jobOrder}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm text-gray-900">
-                      {applicant.position}
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div
-                      className={`text-sm ${getScoreColor(applicant.resumeScore)}`}
-                    >
-                      {applicant.resumeScore}%
-                    </div>
-                  </td>
+            <tbody
+              className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
+            >
+              {filteredApplicants.length === 0 ? (
+                <tr>
                   <td
-                    className="px-6 py-4 whitespace-nowrap"
-                    onClick={(e) => e.stopPropagation()}
+                    colSpan={7}
+                    className={`px-6 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}
                   >
-                    <select
-                      value={applicant.status}
-                      onChange={(e) =>
-                        handleStatusChange(
-                          applicant.id,
-                          e.target.value as Applicant["status"],
-                        )
-                      }
-                      className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getStatusColor(applicant.status)}`}
-                    >
-                      <option value="applied">Applied</option>
-                      <option value="AI-screened">
-                        AI-screened
-                      </option>
-                      <option value="Shortlist">
-                        Shortlist
-                      </option>
-                      <option value="Scheduled">
-                        Scheduled
-                      </option>
-                      <option value="Accepted">Accepted</option>
-                      <option value="Rejected">Rejected</option>
-                    </select>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {applicant.appliedDate}
-                  </td>
-                  <td className="px-6 py-4">
-                    {applicant.status === "Rejected" &&
-                    applicant.rejectionReason ? (
-                      <div className="text-sm text-red-800 max-w-xs">
-                        {applicant.rejectionReason}
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gray-400">
-                        —
-                      </span>
-                    )}
+                    No applicants found.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredApplicants.map((applicant) => (
+                  <tr
+                    key={applicant.application_id}
+                    className={`cursor-pointer transition-colors ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                    onClick={() => setSelectedApplicant(applicant)}
+                  >
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                          <span className="text-green-600 font-semibold text-sm">
+                            {applicant.app_first_name[0]}
+                            {applicant.app_last_name[0]}
+                          </span>
+                        </div>
+                        <div
+                          className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                        >
+                          {applicant.app_first_name} {applicant.app_last_name}
+                        </div>
+                      </div>
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                    >
+                      {applicant.job_order_ref}
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                    >
+                      {applicant.position}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`text-sm ${getScoreColor(applicant.resume_score)}`}
+                      >
+                        {applicant.resume_score?.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`text-sm ${getScoreColor(applicant.job_fit_score)}`}
+                      >
+                        {applicant.job_fit_score?.toFixed(1)}%
+                      </span>
+                    </td>
+                    <td
+                      className="px-6 py-4 whitespace-nowrap"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <select
+                        value={applicant.application_current_status}
+                        onChange={(e) =>
+                          handleStatusChange(
+                            applicant.application_id,
+                            e.target.value,
+                          )
+                        }
+                        className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getStatusColor(applicant.application_current_status)}`}
+                      >
+                        {statuses.map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      {applicant.applied_date}
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -408,23 +384,30 @@ export default function Applicants() {
       {/* Applicant Detail Modal */}
       {selectedApplicant && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+          <div
+            className={`rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
+          >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+            <div
+              className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+            >
               <div className="flex items-center space-x-4">
                 <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                   <span className="text-green-600 font-bold text-xl">
-                    {selectedApplicant.name
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
+                    {selectedApplicant.app_first_name[0]}
+                    {selectedApplicant.app_last_name[0]}
                   </span>
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-900">
-                    {selectedApplicant.name}
+                  <h2
+                    className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
+                    {selectedApplicant.app_first_name}{" "}
+                    {selectedApplicant.app_last_name}
                   </h2>
-                  <p className="text-sm text-gray-500">
+                  <p
+                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
                     {selectedApplicant.position}
                   </p>
                 </div>
@@ -439,147 +422,148 @@ export default function Applicants() {
 
             {/* Modal Content */}
             <div className="p-6 space-y-6">
-              {/* Basic Info */}
               <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Reference Number
-                  </p>
-                  <p className="text-base font-mono text-gray-900 font-semibold">
-                    {selectedApplicant.referenceNumber}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Job Order
-                  </p>
-                  <p className="text-base font-mono text-gray-900">
-                    {selectedApplicant.jobOrder}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Resume Score
-                  </p>
-                  <p
-                    className={`text-base ${getScoreColor(selectedApplicant.resumeScore)}`}
-                  >
-                    {selectedApplicant.resumeScore}%
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Status
-                  </p>
-                  <span
-                    className={`inline-block px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedApplicant.status)}`}
-                  >
-                    {selectedApplicant.status}
-                  </span>
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-500 mb-1">
-                    Applied Date
-                  </p>
-                  <p className="text-base text-gray-900">
-                    {selectedApplicant.appliedDate}
-                  </p>
-                </div>
+                {[
+                  { label: "Email", value: selectedApplicant.app_email },
+                  {
+                    label: "Job Order",
+                    value: selectedApplicant.job_order_ref,
+                  },
+                  {
+                    label: "Resume Score",
+                    value: `${selectedApplicant.resume_score?.toFixed(1)}%`,
+                  },
+                  {
+                    label: "Job Fit Score",
+                    value: `${selectedApplicant.job_fit_score?.toFixed(1)}%`,
+                  },
+                  {
+                    label: "Applied Date",
+                    value: selectedApplicant.applied_date,
+                  },
+                  {
+                    label: "Status",
+                    value: selectedApplicant.application_current_status,
+                  },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <p
+                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      {label}
+                    </p>
+                    <p
+                      className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}
+                    >
+                      {value}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               {/* Experience */}
-              <div className="bg-green-50 rounded-lg p-4">
+              <div
+                className={`rounded-lg p-4 ${darkMode ? "bg-gray-700" : "bg-green-50"}`}
+              >
                 <div className="flex items-center space-x-2 mb-2">
                   <Briefcase className="w-5 h-5 text-green-600" />
-                  <h3 className="font-bold text-gray-900">
+                  <h3
+                    className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     Experience
                   </h3>
                 </div>
-                <p className="text-gray-700">
-                  {selectedApplicant.experience}
-                </p>
+                {selectedApplicant.experience.length > 0 ? (
+                  <ul className="space-y-1">
+                    {selectedApplicant.experience.map((exp, i) => (
+                      <li
+                        key={i}
+                        className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                      >
+                        • {exp}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p
+                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    No experience recorded.
+                  </p>
+                )}
               </div>
 
               {/* Skills */}
-              <div className="bg-blue-50 rounded-lg p-4">
+              <div
+                className={`rounded-lg p-4 ${darkMode ? "bg-gray-700" : "bg-blue-50"}`}
+              >
                 <div className="flex items-center space-x-2 mb-3">
                   <Award className="w-5 h-5 text-blue-600" />
-                  <h3 className="font-bold text-gray-900">
+                  <h3
+                    className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     Skills
                   </h3>
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  {selectedApplicant.skills.map(
-                    (skill, index) => (
+                {selectedApplicant.skills.length > 0 ? (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedApplicant.skills.map((skill, i) => (
                       <span
-                        key={index}
+                        key={i}
                         className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full font-medium"
                       >
                         {skill}
                       </span>
-                    ),
-                  )}
-                </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p
+                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    No skills recorded.
+                  </p>
+                )}
               </div>
 
               {/* Certifications */}
-              <div className="bg-yellow-50 rounded-lg p-4">
+              <div
+                className={`rounded-lg p-4 ${darkMode ? "bg-gray-700" : "bg-yellow-50"}`}
+              >
                 <div className="flex items-center space-x-2 mb-3">
                   <BookOpen className="w-5 h-5 text-yellow-600" />
-                  <h3 className="font-bold text-gray-900">
+                  <h3
+                    className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     Certifications
                   </h3>
                 </div>
-                <div className="space-y-2">
-                  {selectedApplicant.certifications.map(
-                    (cert, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center space-x-2"
-                      >
+                {selectedApplicant.certifications.length > 0 ? (
+                  <div className="space-y-2">
+                    {selectedApplicant.certifications.map((cert, i) => (
+                      <div key={i} className="flex items-center space-x-2">
                         <div className="w-2 h-2 bg-yellow-600 rounded-full"></div>
-                        <span className="text-gray-700">
+                        <span
+                          className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                        >
                           {cert}
                         </span>
                       </div>
-                    ),
-                  )}
-                </div>
-              </div>
-
-              {/* Rejection Reason (if applicable) */}
-              {selectedApplicant.status === "Rejected" &&
-                selectedApplicant.rejectionReason && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                    <h3 className="font-bold text-red-900 mb-2">
-                      Rejection Reason
-                    </h3>
-                    <p className="text-red-800">
-                      {selectedApplicant.rejectionReason}
-                    </p>
+                    ))}
                   </div>
-                )}
-
-              {/* Meeting Link (if applicable) */}
-              {selectedApplicant.meetingLink && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="font-bold text-gray-900 mb-2">
-                    Meeting Link
-                  </h3>
-                  <a
-                    href={selectedApplicant.meetingLink}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-green-600 hover:text-green-700 hover:underline break-all"
+                ) : (
+                  <p
+                    className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
                   >
-                    {selectedApplicant.meetingLink}
-                  </a>
-                </div>
-              )}
+                    No certifications recorded.
+                  </p>
+                )}
+              </div>
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-end space-x-3">
+            <div
+              className={`sticky bottom-0 border-t px-6 py-4 flex justify-end space-x-3 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}
+            >
               <button
                 onClick={() => setSelectedApplicant(null)}
                 className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
