@@ -7,9 +7,7 @@ import {
   Briefcase,
   Award,
   BookOpen,
-  Send, 
- // FileText, // reserved for resume view feature
- // Eye, // reserved for resume view feature
+  Send,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -25,7 +23,11 @@ interface Applicant {
   resume_score: number;
   applied_date: string;
   position: string;
-  job_order_ref: string;
+  jo_id: number;
+  interviewer: string;
+  meeting_link: string;
+  declined_reason: string;
+  rejected_reason: string;
   skills: string[];
   certifications: string[];
   experience: string[];
@@ -41,24 +43,21 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  const [filterJobOrder, setFilterJobOrder] = useState("All");
   const [filterPosition, setFilterPosition] = useState("All");
   const [sortBy, setSortBy] = useState("none");
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     interviewer: "",
-    salary: "",
     meetingLink: "",
     declinedReason: "",
     rejectedReason: "",
   });
 
-
   const statuses = [
     "Applied",
     "Shortlist",
     "Scheduled",
-    "Interviewed", 
+    "Interviewed",
     "Accepted",
     "Declined",
     "Rejected",
@@ -78,6 +77,10 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         application_current_status,
         job_fit_score,
         resume_score,
+        application_interviewer,
+        application_meeting_link,
+        application_decline_reason,
+        application_rejected_reason,
         t_applicant(
           applicant_id,
           app_first_name,
@@ -87,7 +90,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         ),
         t_job_positions(
           job_title,
-          t_job_orders(jo_reference_number)
+          jo_id
         ),
         t_resume(
           resume_id,
@@ -117,8 +120,11 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       resume_score: row.resume_score || 0,
       applied_date: row.applied_date?.full_date || "",
       position: row.t_job_positions?.job_title || "",
-      job_order_ref:
-        row.t_job_positions?.t_job_orders?.jo_reference_number || "",
+      jo_id: row.t_job_positions?.jo_id || 0,
+      interviewer: row.application_interviewer || "",
+      meeting_link: row.application_meeting_link || "",
+      declined_reason: row.application_decline_reason || "",
+      rejected_reason: row.application_rejected_reason || "",
       skills: (row.t_resume?.t_resume_skills || []).map(
         (s: any) => s.rs_skill_name,
       ),
@@ -155,10 +161,52 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
           : a,
       ),
     );
+
+    if (selectedApplicant?.application_id === application_id) {
+      setSelectedApplicant((prev) =>
+        prev ? { ...prev, application_current_status: newStatus } : prev,
+      );
+    }
   };
 
-  const uniqueJobOrders = Array.from(new Set(applicants.map((a) => a.job_order_ref))).sort();
-  const uniquePositions = Array.from(new Set(applicants.map((a) => a.position))).sort();
+  const handleSaveEdit = async () => {
+    if (!selectedApplicant) return;
+
+    const { error: updateError } = await supabase
+      .from("t_applications")
+      .update({
+        application_interviewer: editForm.interviewer,
+        application_meeting_link: editForm.meetingLink,
+        application_decline_reason: editForm.declinedReason,
+        application_rejected_reason: editForm.rejectedReason,
+      })
+      .eq("application_id", selectedApplicant.application_id);
+
+    if (updateError) {
+      alert("Failed to save changes.");
+      return;
+    }
+
+    const updated = {
+      ...selectedApplicant,
+      interviewer: editForm.interviewer,
+      meeting_link: editForm.meetingLink,
+      declined_reason: editForm.declinedReason,
+      rejected_reason: editForm.rejectedReason,
+    };
+
+    setSelectedApplicant(updated);
+    setApplicants((prev) =>
+      prev.map((a) =>
+        a.application_id === selectedApplicant.application_id ? updated : a,
+      ),
+    );
+    setIsEditing(false);
+  };
+
+  const uniquePositions = Array.from(
+    new Set(applicants.map((a) => a.position).filter(Boolean)),
+  ).sort();
 
   const filteredApplicants = (() => {
     let filtered = applicants.filter((a) => {
@@ -166,25 +214,26 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       const matchesSearch =
         fullName.includes(searchTerm.toLowerCase()) ||
         a.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        a.job_order_ref.toLowerCase().includes(searchTerm.toLowerCase());
+        String(a.jo_id).includes(searchTerm);
       const matchesFilter =
         filterStatus === "All" || a.application_current_status === filterStatus;
-      const matchesJobOrder =
-        filterJobOrder === "All" || a.job_order_ref === filterJobOrder;
       const matchesPosition =
         filterPosition === "All" || a.position === filterPosition;
-      return matchesSearch && matchesFilter && matchesJobOrder && matchesPosition;
+      return matchesSearch && matchesFilter && matchesPosition;
     });
 
-    if (sortBy === "resume-high-to-low") {
+    if (sortBy === "resume-high-to-low")
       filtered = [...filtered].sort((a, b) => b.resume_score - a.resume_score);
-    } else if (sortBy === "resume-low-to-high") {
+    else if (sortBy === "resume-low-to-high")
       filtered = [...filtered].sort((a, b) => a.resume_score - b.resume_score);
-    } else if (sortBy === "jobfit-high-to-low") {
-      filtered = [...filtered].sort((a, b) => b.job_fit_score - a.job_fit_score);
-    } else if (sortBy === "jobfit-low-to-high") {
-      filtered = [...filtered].sort((a, b) => a.job_fit_score - b.job_fit_score);
-    }
+    else if (sortBy === "jobfit-high-to-low")
+      filtered = [...filtered].sort(
+        (a, b) => b.job_fit_score - a.job_fit_score,
+      );
+    else if (sortBy === "jobfit-low-to-high")
+      filtered = [...filtered].sort(
+        (a, b) => a.job_fit_score - b.job_fit_score,
+      );
 
     return filtered;
   })();
@@ -239,7 +288,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
   return (
     <div className="space-y-6">
       {/* Statistics Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
         {statuses.map((status) => {
           const count = applicants.filter(
             (a) => a.application_current_status === status,
@@ -264,42 +313,31 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         })}
       </div>
 
-       {/* Filter Dropdowns */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-          <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-            Filter by Job Order
-          </label>
-          <select
-            value={filterJobOrder}
-            onChange={(e) => setFilterJobOrder(e.target.value)}
-            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
-            }`}
-          >
-            <option value="All">All Job Orders</option>
-            {uniqueJobOrders.map((jo) => (
-              <option key={jo} value={jo}>{jo}</option>
-            ))}
-          </select>
-        </div>
-        <div className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
-          <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
-            Filter by Position Applied
-          </label>
-          <select
-            value={filterPosition}
-            onChange={(e) => setFilterPosition(e.target.value)}
-            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
-            }`}
-          >
-            <option value="All">All Positions</option>
-            {uniquePositions.map((pos) => (
-              <option key={pos} value={pos}>{pos}</option>
-            ))}
-          </select>
-        </div>
+      {/* Position Filter */}
+      <div
+        className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
+        <label
+          className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+        >
+          Filter by Position Applied
+        </label>
+        <select
+          value={filterPosition}
+          onChange={(e) => setFilterPosition(e.target.value)}
+          className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+            darkMode
+              ? "bg-gray-700 border-gray-600 text-white"
+              : "bg-white border-gray-300 text-gray-900"
+          }`}
+        >
+          <option value="All">All Positions</option>
+          {uniquePositions.map((pos) => (
+            <option key={pos} value={pos}>
+              {pos}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Search and Filter */}
@@ -308,7 +346,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Search by name, position, or job order..."
+            placeholder="Search by name or position..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
@@ -335,19 +373,24 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
             ))}
           </select>
         </div>
-        {/*added sort dropdown */}
-       <select
+        <select
           value={sortBy}
           onChange={(e) => setSortBy(e.target.value)}
           className={`px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-            darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+            darkMode
+              ? "bg-gray-800 border-gray-700 text-white"
+              : "bg-white border-gray-300 text-gray-900"
           }`}
         >
           <option value="none">Sort By</option>
           <option value="resume-high-to-low">Resume Score (High to Low)</option>
           <option value="resume-low-to-high">Resume Score (Low to High)</option>
-          <option value="jobfit-high-to-low">Job Fit Score (High to Low)</option>
-          <option value="jobfit-low-to-high">Job Fit Score (Low to High)</option>
+          <option value="jobfit-high-to-low">
+            Job Fit Score (High to Low)
+          </option>
+          <option value="jobfit-low-to-high">
+            Job Fit Score (Low to High)
+          </option>
         </select>
         <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
           <Download className="w-5 h-5" />
@@ -363,8 +406,19 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
           <table className="w-full">
             <thead className="bg-green-600">
               <tr>
-                {["Name", "Job Order", "Position Applied", "Resume Score", "Job Fit Score", "Status", "Applied Date"].map((h) => (
-                  <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                {[
+                  "Name",
+                  "Job Order ID",
+                  "Position Applied",
+                  "Resume Score",
+                  "Job Fit Score",
+                  "Status",
+                  "Applied Date",
+                ].map((h) => (
+                  <th
+                    key={h}
+                    className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider"
+                  >
                     {h}
                   </th>
                 ))}
@@ -391,17 +445,18 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                       setSelectedApplicant(applicant);
                       setIsEditing(false);
                       setEditForm({
-                        interviewer: "",
-                        salary: "",
-                        meetingLink: "",
-                        declinedReason: "",
-                        rejectedReason: "",
+                        interviewer: applicant.interviewer || "",
+                        meetingLink: applicant.meeting_link || "",
+                        declinedReason: applicant.declined_reason || "",
+                        rejectedReason: applicant.rejected_reason || "",
                       });
                     }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${darkMode ? "bg-green-900" : "bg-green-100"}`}>
+                        <div
+                          className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${darkMode ? "bg-green-900" : "bg-green-100"}`}
+                        >
                           <span className="text-green-600 font-semibold text-sm">
                             {applicant.app_first_name[0]}
                             {applicant.app_last_name[0]}
@@ -417,7 +472,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? "text-gray-300" : "text-gray-900"}`}
                     >
-                      {applicant.job_order_ref}
+                      {applicant.jo_id || "—"}
                     </td>
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
@@ -476,7 +531,10 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       {selectedApplicant && (
         <div
           className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-          onClick={() => { setSelectedApplicant(null); setIsEditing(false); }}
+          onClick={() => {
+            setSelectedApplicant(null);
+            setIsEditing(false);
+          }}
         >
           <div
             className={`rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
@@ -487,7 +545,9 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
               className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
             >
               <div className="flex items-center space-x-4">
-                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${darkMode ? "bg-green-900" : "bg-green-100"}`}>
+                <div
+                  className={`w-16 h-16 rounded-full flex items-center justify-center ${darkMode ? "bg-green-900" : "bg-green-100"}`}
+                >
                   <span className="text-green-600 font-bold text-xl">
                     {selectedApplicant.app_first_name[0]}
                     {selectedApplicant.app_last_name[0]}
@@ -508,7 +568,10 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                 </div>
               </div>
               <button
-                onClick={() => setSelectedApplicant(null)}
+                onClick={() => {
+                  setSelectedApplicant(null);
+                  setIsEditing(false);
+                }}
                 className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <X className="w-6 h-6 text-gray-500" />
@@ -521,8 +584,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                 {[
                   { label: "Email", value: selectedApplicant.app_email },
                   {
-                    label: "Job Order",
-                    value: selectedApplicant.job_order_ref,
+                    label: "Job Order ID",
+                    value: selectedApplicant.jo_id || "—",
                   },
                   {
                     label: "Resume Score",
@@ -540,6 +603,14 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                     label: "Status",
                     value: selectedApplicant.application_current_status,
                   },
+                  {
+                    label: "Interviewer",
+                    value: selectedApplicant.interviewer || "—",
+                  },
+                  {
+                    label: "Meeting Link",
+                    value: selectedApplicant.meeting_link || "—",
+                  },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p
@@ -547,13 +618,57 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                     >
                       {label}
                     </p>
-                    <p
-                      className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}
-                    >
-                      {value}
-                    </p>
+                    {label === "Meeting Link" &&
+                    selectedApplicant.meeting_link ? (
+                      <a
+                        href={selectedApplicant.meeting_link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-green-600 hover:underline text-sm break-all"
+                      >
+                        {selectedApplicant.meeting_link}
+                      </a>
+                    ) : (
+                      <p
+                        className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}
+                      >
+                        {value}
+                      </p>
+                    )}
                   </div>
                 ))}
+
+                {/* Declined Reason */}
+                {selectedApplicant.declined_reason && (
+                  <div className="col-span-2">
+                    <p
+                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Declined Reason
+                    </p>
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+                      <p className="text-orange-800 text-sm">
+                        {selectedApplicant.declined_reason}
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rejected Reason */}
+                {selectedApplicant.rejected_reason && (
+                  <div className="col-span-2">
+                    <p
+                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Rejected Reason
+                    </p>
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-red-800 text-sm">
+                        {selectedApplicant.rejected_reason}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Experience */}
@@ -657,42 +772,72 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
 
             {/* Editable Fields */}
             {isEditing && (
-              <div className="p-6 pt-0 space-y-4">
+              <div className="px-6 pb-6 space-y-4">
                 <div>
-                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interviewer</p>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Interviewer
+                  </p>
                   <input
                     type="text"
                     value={editForm.interviewer}
-                    onChange={(e) => setEditForm({ ...editForm, interviewer: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, interviewer: e.target.value })
+                    }
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                     placeholder="Enter interviewer name"
                   />
                 </div>
                 <div>
-                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Salary</p>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Meeting Link
+                  </p>
                   <input
                     type="text"
-                    value={editForm.salary}
-                    onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                    value={editForm.meetingLink}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, meetingLink: e.target.value })
+                    }
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                    placeholder="Enter salary (e.g., ₱25,000/month)"
+                    placeholder="https://meet.example.com/..."
                   />
                 </div>
                 <div>
-                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Declined Reason</p>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Declined Reason
+                  </p>
                   <textarea
                     value={editForm.declinedReason}
-                    onChange={(e) => setEditForm({ ...editForm, declinedReason: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        declinedReason: e.target.value,
+                      })
+                    }
                     rows={3}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                     placeholder="Enter declined reason (if applicable)"
                   />
                 </div>
                 <div>
-                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rejected Reason</p>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Rejected Reason
+                  </p>
                   <textarea
                     value={editForm.rejectedReason}
-                    onChange={(e) => setEditForm({ ...editForm, rejectedReason: e.target.value })}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        rejectedReason: e.target.value,
+                      })
+                    }
                     rows={3}
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                     placeholder="Enter rejected reason (if applicable)"
@@ -702,10 +847,14 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
             )}
 
             {/* Modal Footer */}
-            <div className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+            <div
+              className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}
+            >
               <div className="relative group">
                 <button
-                  disabled={selectedApplicant.application_current_status !== "Accepted"}
+                  disabled={
+                    selectedApplicant.application_current_status !== "Accepted"
+                  }
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
                     selectedApplicant.application_current_status === "Accepted"
                       ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
@@ -715,7 +864,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                   <Send className="w-4 h-4" />
                   <span>Send Offer</span>
                 </button>
-                {selectedApplicant.application_current_status !== "Accepted" && (
+                {selectedApplicant.application_current_status !==
+                  "Accepted" && (
                   <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
                     Applicant must be accepted first
                   </div>
@@ -723,14 +873,17 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
               </div>
               <div className="flex space-x-3">
                 <button
-                  onClick={() => { setSelectedApplicant(null); setIsEditing(false); }}
+                  onClick={() => {
+                    setSelectedApplicant(null);
+                    setIsEditing(false);
+                  }}
                   className={`px-4 py-2 border rounded-lg transition-colors ${darkMode ? "border-gray-600 hover:bg-gray-700 text-white" : "border-gray-300 hover:bg-gray-100 text-gray-900"}`}
                 >
                   Close
                 </button>
                 {isEditing ? (
                   <button
-                    onClick={() => setIsEditing(false)}
+                    onClick={handleSaveEdit}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
                     Save Changes

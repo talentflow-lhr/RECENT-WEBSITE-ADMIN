@@ -1,99 +1,380 @@
-import React, { useState } from 'react';
-import { Search, Download, Filter } from 'lucide-react';
-import { useJobOrders } from '../contexts/JobOrdersContext';
+import React, { useState, useEffect } from "react";
+import { Search, Download } from "lucide-react";
+import { supabase } from "./supabaseClient";
 
-export default function PreDeploymentChecklist({ darkMode = false }) {
-  const { jobOrders } = useJobOrders();
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterJobOrder, setFilterJobOrder] = useState('All');
-  const [filterPosition, setFilterPosition] = useState('All');
+interface DeploymentApplicant {
+  processing_id: number;
+  application_id: number;
+  app_first_name: string;
+  app_last_name: string;
+  position: string;
+  company: string;
+  jo_code: string;
+  jo_id: number;
+  medicalStatus: string | null;
+  biometricStatus: string | null;
+  visaApproval: string | null;
+  insurance: string | null;
+  pdos: string | null;
+  oec: string | null;
+  requestTicket: string | null;
+  briefedContract: string | null;
+  deploymentDate: string;
+  processStatus: string | null;
+}
 
-  // Get all accepted applicants for pre-deployment
-  const [deploymentApplicants, setDeploymentApplicants] = useState(
-    jobOrders.flatMap(jobOrder =>
-      jobOrder.positions.flatMap(position =>
-        position.applicants
-          .filter(applicant => applicant.status === 'Accepted')
-          .map(applicant => ({
-            id: `${jobOrder.id}-${position.id}-${applicant.id}`,
-            applicantId: applicant.id,
-            name: applicant.name,
-            position: position.title,
-            company: jobOrder.principalCompanyName,
-            jobOrderCode: jobOrder.jobOrderCode,
-            medicalStatus: false,
-            biometricStatus: true,
-            visaApproval: false,
-            insurance: false,
-            pdos: false,
-            oec: false,
-            requestTicket: false,
-            briefedContract: true,
-            deploymentDate: '2026-03-15'
-          }))
+export default function PreDeploymentChecklist({
+  darkMode = false,
+}: {
+  darkMode?: boolean;
+}) {
+  const [deploymentApplicants, setDeploymentApplicants] = useState<
+    DeploymentApplicant[]
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterJobOrder, setFilterJobOrder] = useState("All");
+  const [filterPosition, setFilterPosition] = useState("All");
+
+  useEffect(() => {
+    fetchDeploymentData();
+  }, []);
+
+  const fetchDeploymentData = async () => {
+    setLoading(true);
+    setError("");
+
+    const { data, error: dbError } = await supabase.from("t_processing")
+      .select(`
+        processing_id,
+        application_id,
+        process_medical_status,
+        process_biometrics_status,
+        process_visa_stamping,
+        process_insurance,
+        process_pdos,
+        process_oec,
+        process_req_ticket,
+        process_brief_clear_contract,
+        process_deploy_date,
+        process_status,
+        t_applications(
+          application_id,
+          application_current_status,
+          t_applicant(app_first_name, app_last_name),
+          t_job_positions(
+            job_title,
+            t_job_orders(
+              jo_id,
+              company_id,
+              t_companies(company_name)
+            )
+          )
+        )
+      `);
+
+    if (dbError) {
+      console.error(dbError);
+      setError("Failed to load deployment data.");
+      setLoading(false);
+      return;
+    }
+
+    // Also fetch accepted applicants that don't have a processing record yet
+    const { data: acceptedData, error: acceptedError } = await supabase
+      .from("t_applications")
+      .select(
+        `
+        application_id,
+        application_current_status,
+        t_applicant(app_first_name, app_last_name),
+        t_job_positions(
+          job_title,
+          t_job_orders(
+            jo_id,
+            company_id,
+            t_companies(company_name)
+          )
+        )
+      `,
       )
-    )
-  );
+      .eq("application_current_status", "Accepted");
 
-  // Get unique job orders and positions for filters
-  const uniqueJobOrders = Array.from(new Set(deploymentApplicants.map(a => a.jobOrderCode))).sort();
-  const uniquePositions = Array.from(new Set(deploymentApplicants.map(a => a.position))).sort();
+    if (acceptedError) {
+      console.error(acceptedError);
+    }
 
-  // Update checkbox status
-  const handleCheckboxChange = (applicantId, field) => {
-    setDeploymentApplicants(prevApplicants =>
-      prevApplicants.map(app =>
-        app.id === applicantId
-          ? { ...app, [field]: !app[field] }
-          : app
-      )
+    // Get existing processing application_ids
+    const existingIds = new Set((data || []).map((r: any) => r.application_id));
+
+    // Map existing processing records
+    const fromProcessing: DeploymentApplicant[] = (data || []).map(
+      (row: any) => ({
+        processing_id: row.processing_id,
+        application_id: row.application_id,
+        app_first_name: row.t_applications?.t_applicant?.app_first_name || "",
+        app_last_name: row.t_applications?.t_applicant?.app_last_name || "",
+        position: row.t_applications?.t_job_positions?.job_title || "",
+        company:
+          row.t_applications?.t_job_positions?.t_job_orders?.t_companies
+            ?.company_name || "",
+        jo_code: `JO-${String(row.t_applications?.t_job_positions?.t_job_orders?.jo_id || 0).padStart(5, "0")}`,
+        jo_id: row.t_applications?.t_job_positions?.t_job_orders?.jo_id || 0,
+        medicalStatus: row.process_medical_status,
+        biometricStatus: row.process_biometrics_status,
+        visaApproval: row.process_visa_stamping,
+        insurance: row.process_insurance,
+        pdos: row.process_pdos,
+        oec: row.process_oec,
+        requestTicket: row.process_req_ticket,
+        briefedContract: row.process_brief_clear_contract,
+        deploymentDate: row.process_deploy_date || "",
+        processStatus: row.process_status,
+      }),
+    );
+
+    // Map accepted applicants without processing records
+    const fromAccepted: DeploymentApplicant[] = (acceptedData || [])
+      .filter((row: any) => !existingIds.has(row.application_id))
+      .map((row: any) => ({
+        processing_id: -1, // not yet in DB
+        application_id: row.application_id,
+        app_first_name: row.t_applicant?.app_first_name || "",
+        app_last_name: row.t_applicant?.app_last_name || "",
+        position: row.t_job_positions?.job_title || "",
+        company:
+          row.t_job_positions?.t_job_orders?.t_companies?.company_name || "",
+        jo_code: `JO-${String(row.t_job_positions?.t_job_orders?.jo_id || 0).padStart(5, "0")}`,
+        jo_id: row.t_job_positions?.t_job_orders?.jo_id || 0,
+        medicalStatus: null,
+        biometricStatus: null,
+        visaApproval: null,
+        insurance: null,
+        pdos: null,
+        oec: null,
+        requestTicket: null,
+        briefedContract: null,
+        deploymentDate: "",
+        processStatus: null,
+      }));
+
+    setDeploymentApplicants([...fromProcessing, ...fromAccepted]);
+    setLoading(false);
+  };
+
+  const handleFieldChange = async (
+    applicant: DeploymentApplicant,
+    field: string,
+    value: string,
+  ) => {
+    const fieldMap: Record<string, string> = {
+      deploymentDate: "process_deploy_date",
+    };
+
+    const dbField = fieldMap[field];
+    if (!dbField) return;
+
+    setDeploymentApplicants((prev) =>
+      prev.map((a) =>
+        a.application_id === applicant.application_id
+          ? { ...a, [field]: value }
+          : a,
+      ),
+    );
+
+    if (applicant.processing_id === -1) {
+      const { data: newRecord, error: insertError } = await supabase
+        .from("t_processing")
+        .insert({
+          application_id: applicant.application_id,
+          [dbField]: value,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error(insertError);
+        return;
+      }
+
+      setDeploymentApplicants((prev) =>
+        prev.map((a) =>
+          a.application_id === applicant.application_id
+            ? { ...a, processing_id: newRecord.processing_id }
+            : a,
+        ),
+      );
+    } else {
+      const { error: updateError } = await supabase
+        .from("t_processing")
+        .update({ [dbField]: value })
+        .eq("processing_id", applicant.processing_id);
+
+      if (updateError) console.error(updateError);
+    }
+  };
+
+  const getStatusValue = (val: string | null) => {
+    if (!val) return false;
+    return (
+      val.toLowerCase() === "done" ||
+      val.toLowerCase() === "yes" ||
+      val === "1" ||
+      val.toLowerCase() === "complete"
     );
   };
 
-  // Update deployment date
-  const handleDeploymentDateChange = (applicantId, newDate) => {
-    setDeploymentApplicants(prevApplicants =>
-      prevApplicants.map(app =>
-        app.id === applicantId
-          ? { ...app, deploymentDate: newDate }
-          : app
-      )
+  const handleCheckboxChange = async (
+    applicant: DeploymentApplicant,
+    field: string,
+  ) => {
+    const current = (applicant as any)[field];
+    const newValue = getStatusValue(current) ? "Pending" : "Done";
+
+    // Build updated applicant to check if all done
+    const updatedApplicant = { ...applicant, [field]: newValue };
+    const allDone = [
+      updatedApplicant.medicalStatus,
+      updatedApplicant.biometricStatus,
+      updatedApplicant.visaApproval,
+      updatedApplicant.insurance,
+      updatedApplicant.pdos,
+      updatedApplicant.oec,
+      updatedApplicant.requestTicket,
+      updatedApplicant.briefedContract,
+    ].every((val) => getStatusValue(val));
+
+    const newProcessStatus = allDone ? "Complete" : "Pending";
+
+    // Update local state immediately
+    setDeploymentApplicants((prev) =>
+      prev.map((a) =>
+        a.application_id === applicant.application_id
+          ? { ...a, [field]: newValue, processStatus: newProcessStatus }
+          : a,
+      ),
     );
+
+    const fieldMap: Record<string, string> = {
+      medicalStatus: "process_medical_status",
+      biometricStatus: "process_biometrics_status",
+      visaApproval: "process_visa_stamping",
+      insurance: "process_insurance",
+      pdos: "process_pdos",
+      oec: "process_oec",
+      requestTicket: "process_req_ticket",
+      briefedContract: "process_brief_clear_contract",
+    };
+
+    const dbField = fieldMap[field];
+
+    if (applicant.processing_id === -1) {
+      // Create new processing record
+      const { data: newRecord, error: insertError } = await supabase
+        .from("t_processing")
+        .insert({
+          application_id: applicant.application_id,
+          [dbField]: newValue,
+          process_status: newProcessStatus,
+        })
+        .select()
+        .single();
+
+      if (insertError) {
+        console.error(insertError);
+        return;
+      }
+
+      setDeploymentApplicants((prev) =>
+        prev.map((a) =>
+          a.application_id === applicant.application_id
+            ? { ...a, processing_id: newRecord.processing_id }
+            : a,
+        ),
+      );
+    } else {
+      // Update existing record
+      const { error: updateError } = await supabase
+        .from("t_processing")
+        .update({ [dbField]: newValue, process_status: newProcessStatus })
+        .eq("processing_id", applicant.processing_id);
+
+      if (updateError) console.error(updateError);
+    }
   };
 
-  // Calculate pre-deployment status
-  const getPreDeploymentStatus = (applicant) => {
-    const allChecked = applicant.medicalStatus &&
-      applicant.biometricStatus &&
-      applicant.visaApproval &&
-      applicant.insurance &&
-      applicant.pdos &&
-      applicant.oec &&
-      applicant.requestTicket &&
-      applicant.briefedContract;
-    return allChecked ? 'Complete' : 'Incomplete';
+  const getPreDeploymentStatus = (applicant: DeploymentApplicant) => {
+    const allDone = [
+      applicant.medicalStatus,
+      applicant.biometricStatus,
+      applicant.visaApproval,
+      applicant.insurance,
+      applicant.pdos,
+      applicant.oec,
+      applicant.requestTicket,
+      applicant.briefedContract,
+    ].every((val) => getStatusValue(val));
+    return allDone ? "Complete" : "Incomplete";
   };
 
-  const filteredApplicants = deploymentApplicants.filter(applicant => {
+  const uniqueJobOrders = Array.from(
+    new Set(deploymentApplicants.map((a) => a.jo_code)),
+  ).sort();
+  const uniquePositions = Array.from(
+    new Set(deploymentApplicants.map((a) => a.position)),
+  ).sort();
+
+  const filteredApplicants = deploymentApplicants.filter((applicant) => {
+    const fullName =
+      `${applicant.app_first_name} ${applicant.app_last_name}`.toLowerCase();
     const matchesSearch =
-      applicant.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      fullName.includes(searchTerm.toLowerCase()) ||
       applicant.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
       applicant.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      applicant.jobOrderCode.toLowerCase().includes(searchTerm.toLowerCase());
-
-    const matchesJobOrder = filterJobOrder === 'All' || applicant.jobOrderCode === filterJobOrder;
-    const matchesPosition = filterPosition === 'All' || applicant.position === filterPosition;
-
+      applicant.jo_code.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesJobOrder =
+      filterJobOrder === "All" || applicant.jo_code === filterJobOrder;
+    const matchesPosition =
+      filterPosition === "All" || applicant.position === filterPosition;
     return matchesSearch && matchesJobOrder && matchesPosition;
   });
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p
+          className={`text-lg ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+        >
+          Loading deployment data...
+        </p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-red-500">{error}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Pre-Deployment Checklist</h1>
-          <p className={`text-sm mt-1 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>Track deployment requirements for accepted applicants</p>
+          <h1
+            className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+          >
+            Pre-Deployment Checklist
+          </h1>
+          <p
+            className={`text-sm mt-1 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+          >
+            Track deployment requirements for accepted applicants
+          </p>
         </div>
         <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
           <Download className="w-5 h-5" />
@@ -103,50 +384,64 @@ export default function PreDeploymentChecklist({ darkMode = false }) {
 
       {/* Search and Filters */}
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className={`absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 ${darkMode ? 'text-gray-400' : 'text-gray-400'}`} />
-            <input
-              type="text"
-              placeholder="Search by name, position, company, or job order..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-                darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
-              }`}
-            />
-          </div>
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
+          <input
+            type="text"
+            placeholder="Search by name, position, company, or job order..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+              darkMode
+                ? "bg-gray-800 border-gray-700 text-white"
+                : "bg-white border-gray-300 text-gray-900"
+            }`}
+          />
         </div>
-
-        {/* Filter Dropdowns */}
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Filter by Job Order</label>
+            <label
+              className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+            >
+              Filter by Job Order
+            </label>
             <select
               value={filterJobOrder}
               onChange={(e) => setFilterJobOrder(e.target.value)}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-                darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                darkMode
+                  ? "bg-gray-800 border-gray-700 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
               }`}
             >
               <option value="All">All Job Orders</option>
-              {uniqueJobOrders.map(jobOrder => (
-                <option key={jobOrder} value={jobOrder}>{jobOrder}</option>
+              {uniqueJobOrders.map((jo) => (
+                <option key={jo} value={jo}>
+                  {jo}
+                </option>
               ))}
             </select>
           </div>
           <div className="flex-1">
-            <label className={`block text-sm font-medium mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>Filter by Position</label>
+            <label
+              className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+            >
+              Filter by Position
+            </label>
             <select
               value={filterPosition}
               onChange={(e) => setFilterPosition(e.target.value)}
               className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
-                darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+                darkMode
+                  ? "bg-gray-800 border-gray-700 text-white"
+                  : "bg-white border-gray-300 text-gray-900"
               }`}
             >
               <option value="All">All Positions</option>
-              {uniquePositions.map(position => (
-                <option key={position} value={position}>{position}</option>
+              {uniquePositions.map((pos) => (
+                <option key={pos} value={pos}>
+                  {pos}
+                </option>
               ))}
             </select>
           </div>
@@ -154,7 +449,9 @@ export default function PreDeploymentChecklist({ darkMode = false }) {
       </div>
 
       {/* Table */}
-      <div className={`rounded-xl shadow-md overflow-hidden ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div
+        className={`rounded-xl shadow-md overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-green-600">
@@ -201,117 +498,118 @@ export default function PreDeploymentChecklist({ darkMode = false }) {
                 </th>
               </tr>
             </thead>
-            <tbody className={`divide-y ${darkMode ? 'bg-gray-800 divide-gray-700' : 'bg-white divide-gray-200'}`}>
+            <tbody
+              className={`divide-y ${darkMode ? "bg-gray-800 divide-gray-700" : "bg-white divide-gray-200"}`}
+            >
               {filteredApplicants.length === 0 ? (
                 <tr>
-                  <td colSpan={13} className={`px-6 py-8 text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                  <td
+                    colSpan={13}
+                    className={`px-6 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
                     No applicants found
                   </td>
                 </tr>
               ) : (
                 filteredApplicants.map((applicant) => {
                   const preDeploymentStatus = getPreDeploymentStatus(applicant);
+                  const checkboxFields = [
+                    { key: "medicalStatus", val: applicant.medicalStatus },
+                    { key: "biometricStatus", val: applicant.biometricStatus },
+                    { key: "visaApproval", val: applicant.visaApproval },
+                    { key: "insurance", val: applicant.insurance },
+                    { key: "pdos", val: applicant.pdos },
+                    { key: "oec", val: applicant.oec },
+                    { key: "requestTicket", val: applicant.requestTicket },
+                    { key: "briefedContract", val: applicant.briefedContract },
+                  ];
+
                   return (
-                    <tr key={applicant.id} className={`transition-colors ${darkMode ? 'hover:bg-gray-700' : 'hover:bg-gray-50'}`}>
+                    <tr
+                      key={applicant.application_id}
+                      className={`transition-colors ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
+                    >
                       <td className="px-4 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${
-                            darkMode ? 'bg-green-900' : 'bg-green-100'
-                          }`}>
+                          <div
+                            className={`w-8 h-8 rounded-full flex items-center justify-center mr-3 ${darkMode ? "bg-green-900" : "bg-green-100"}`}
+                          >
                             <span className="text-green-600 font-semibold text-xs">
-                              {applicant.name.split(' ').map(n => n[0]).join('')}
+                              {applicant.app_first_name[0]}
+                              {applicant.app_last_name[0]}
                             </span>
                           </div>
-                          <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{applicant.name}</div>
+                          <div
+                            className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                          >
+                            {applicant.app_first_name} {applicant.app_last_name}
+                          </div>
                         </div>
                       </td>
-                      <td className={`px-4 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                      <td
+                        className={`px-4 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                      >
                         {applicant.position}
                       </td>
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>{applicant.company}</div>
-                        <div className={`text-xs font-mono text-center ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>{applicant.jobOrderCode}</div>
+                        <div
+                          className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                        >
+                          {applicant.company}
+                        </div>
+                        <div
+                          className={`text-xs font-mono text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                        >
+                          {applicant.jo_code}
+                        </div>
                       </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.medicalStatus}
-                          onChange={() => handleCheckboxChange(applicant.id, 'medicalStatus')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.biometricStatus}
-                          onChange={() => handleCheckboxChange(applicant.id, 'biometricStatus')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.visaApproval}
-                          onChange={() => handleCheckboxChange(applicant.id, 'visaApproval')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.insurance}
-                          onChange={() => handleCheckboxChange(applicant.id, 'insurance')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.pdos}
-                          onChange={() => handleCheckboxChange(applicant.id, 'pdos')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.oec}
-                          onChange={() => handleCheckboxChange(applicant.id, 'oec')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.requestTicket}
-                          onChange={() => handleCheckboxChange(applicant.id, 'requestTicket')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
-                      <td className="px-4 py-4 whitespace-nowrap text-center">
-                        <input
-                          type="checkbox"
-                          checked={applicant.briefedContract}
-                          onChange={() => handleCheckboxChange(applicant.id, 'briefedContract')}
-                          className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer"
-                        />
-                      </td>
+
+                      {/* Checkboxes */}
+                      {checkboxFields.map(({ key, val }) => (
+                        <td
+                          key={key}
+                          className="px-4 py-4 whitespace-nowrap text-center"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={getStatusValue(val)}
+                            onChange={() =>
+                              handleCheckboxChange(applicant, key)
+                            }
+                            className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer accent-green-600"
+                          />
+                        </td>
+                      ))}
+
+                      {/* Pre-Deployment Status */}
                       <td className="px-4 py-4 whitespace-nowrap">
-                        <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                          preDeploymentStatus === 'Complete'
-                            ? 'bg-green-100 text-green-800'
-                            : 'bg-yellow-100 text-yellow-800'
-                        }`}>
+                        <span
+                          className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                            preDeploymentStatus === "Complete"
+                              ? "bg-green-100 text-green-800"
+                              : "bg-yellow-100 text-yellow-800"
+                          }`}
+                        >
                           {preDeploymentStatus}
                         </span>
                       </td>
+
+                      {/* Deployment Date */}
                       <td className="px-4 py-4 whitespace-nowrap">
                         <input
                           type="date"
-                          value={applicant.deploymentDate}
-                          onChange={(e) => handleDeploymentDateChange(applicant.id, e.target.value)}
+                          value={applicant.deploymentDate || ""}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              applicant,
+                              "deploymentDate",
+                              e.target.value,
+                            )
+                          }
                           className={`px-2 py-1 border rounded focus:outline-none focus:border-green-600 text-sm ${
-                            darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'bg-white border-gray-300 text-gray-900'
+                            darkMode
+                              ? "bg-gray-700 border-gray-600 text-white"
+                              : "bg-white border-gray-300 text-gray-900"
                           }`}
                         />
                       </td>
@@ -325,20 +623,43 @@ export default function PreDeploymentChecklist({ darkMode = false }) {
       </div>
 
       {/* Summary Footer */}
-      <div className={`rounded-lg shadow-md p-4 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
+      <div
+        className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
         <div className="flex justify-between items-center">
-          <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-            Total Applicants: <span className={`font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>{filteredApplicants.length}</span>
+          <div
+            className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+          >
+            Total Applicants:{" "}
+            <span
+              className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+            >
+              {filteredApplicants.length}
+            </span>
           </div>
           <div className="flex space-x-6">
-            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Complete: <span className="font-semibold text-green-600">
-                {filteredApplicants.filter(app => getPreDeploymentStatus(app) === 'Complete').length}
+            <div
+              className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+            >
+              Complete:{" "}
+              <span className="font-semibold text-green-600">
+                {
+                  filteredApplicants.filter(
+                    (app) => getPreDeploymentStatus(app) === "Complete",
+                  ).length
+                }
               </span>
             </div>
-            <div className={`text-sm ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-              Incomplete: <span className="font-semibold text-yellow-600">
-                {filteredApplicants.filter(app => getPreDeploymentStatus(app) === 'Incomplete').length}
+            <div
+              className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+            >
+              Incomplete:{" "}
+              <span className="font-semibold text-yellow-600">
+                {
+                  filteredApplicants.filter(
+                    (app) => getPreDeploymentStatus(app) === "Incomplete",
+                  ).length
+                }
               </span>
             </div>
           </div>

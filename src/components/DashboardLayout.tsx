@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   BarChart3,
@@ -29,7 +29,7 @@ import Companies from "./Companies";
 import General from "./General";
 import Deployment from "./Deployment";
 import Applicants from "./Applicants";
-import PreDeploymentChecklist from './PreDeploymentChecklist';
+import PreDeploymentChecklist from "./PreDeploymentChecklist";
 
 interface AdminUser {
   admin_acc_id: number;
@@ -58,6 +58,14 @@ export default function DashboardLayout({
   const [darkMode, setDarkMode] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add("dark");
+    } else {
+      document.documentElement.classList.remove("dark");
+    }
+  }, [darkMode]);
+
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     {
@@ -71,7 +79,11 @@ export default function DashboardLayout({
     { id: "applicants", label: "Applicants", icon: UserCheck },
     { id: "joborders", label: "Job Orders", icon: Briefcase },
     { id: "companies", label: "Companies", icon: Building2 },
-    { id: 'predeployment', label: 'Pre-Deployment Checklist', icon: CheckSquare },
+    {
+      id: "predeployment",
+      label: "Pre-Deployment Checklist",
+      icon: CheckSquare,
+    },
     { id: "deployment", label: "Deployment", icon: Plane },
     { id: "general", label: "General", icon: Settings },
   ];
@@ -96,7 +108,7 @@ export default function DashboardLayout({
         return <JobOrders darkMode={darkMode} />;
       case "companies":
         return <Companies darkMode={darkMode} />;
-      case 'predeployment':
+      case "predeployment":
         return <PreDeploymentChecklist darkMode={darkMode} />;
       case "deployment":
         return <Deployment darkMode={darkMode} />;
@@ -110,9 +122,9 @@ export default function DashboardLayout({
       {/* Sidebar */}
       <aside
         className={`fixed left-0 top-0 h-full w-64 transition-transform duration-300 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          sidebarOpen ? "translate-x-0" : "-translate-x-full"
         } ${
-          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+          darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
         } border-r overflow-hidden z-40 shadow-2xl`}
       >
         <div className="p-6">
@@ -143,20 +155,20 @@ export default function DashboardLayout({
               return (
                 <button
                   key={item.id}
-                  onClick={() =>{
+                  onClick={() => {
                     setActiveMenu(item.id);
                     setSidebarOpen(false);
                   }}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-300 ${
                     activeMenu === item.id
-                      ? 'bg-green-600 text-white'
+                      ? "bg-green-600 text-white"
                       : darkMode
-                      ? 'text-gray-300 hover:bg-gray-700'
-                      : 'text-gray-700 hover:bg-gray-100'
+                        ? "text-gray-300 hover:bg-gray-700"
+                        : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                    <span className="truncate">{item.label}</span>
+                  <span className="truncate">{item.label}</span>
                 </button>
               );
             })}
@@ -174,18 +186,22 @@ export default function DashboardLayout({
               : "bg-white border-gray-200"
           } border-b`}
         >
-           <div className="flex items-center justify-between px-6 py-4">
+          <div className="flex items-center justify-between px-6 py-4">
             <div className="flex items-center space-x-4">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className={`p-2 rounded-lg ${
-                  darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                  darkMode
+                    ? "hover:bg-gray-700 text-gray-300"
+                    : "hover:bg-gray-100 text-gray-700"
                 }`}
                 title="Open menu"
               >
                 <Menu className="w-6 h-6" />
               </button>
-              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <h1
+                className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
                 {menuItems.find((item) => item.id === activeMenu)?.label}
               </h1>
             </div>

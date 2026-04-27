@@ -26,10 +26,10 @@ interface Applicant {
   application_current_status: string;
   applied_date: string;
   interviewer?: string;
-  salary?: string;
   meeting_link?: string;
   declined_reason?: string;
   rejected_reason?: string;
+  resume_url?: string;
 }
 
 interface Position {
@@ -47,7 +47,6 @@ interface Position {
 
 interface JobOrder {
   jo_id: number;
-  jo_reference_number: string;
   is_active: boolean;
   is_posted: boolean;
   jo_posted_date: string;
@@ -106,13 +105,15 @@ export default function JobOrders({
   const [selectedApplicant, setSelectedApplicant] = useState<any>(null);
   const [isEditingApplicant, setIsEditingApplicant] = useState(false);
   const [applicantEditForm, setApplicantEditForm] = useState({
-    interviewer: '', salary: '', meetingLink: '', declinedReason: '', rejectedReason: ''
+    interviewer: "",
+    meetingLink: "",
+    declinedReason: "",
+    rejectedReason: "",
   });
 
   const [jobOrderForm, setJobOrderForm] = useState({
     company_id: "",
     jo_country: "",
-    jo_reference_number: "",
     jo_deadline: "",
     jo_created_by: "",
     is_active: true,
@@ -153,7 +154,6 @@ export default function JobOrders({
     const { data, error: dbError } = await supabase.from("t_job_orders")
       .select(`
         jo_id,
-        jo_reference_number,
         is_active,
         is_posted,
         jo_country,
@@ -178,7 +178,12 @@ export default function JobOrders({
             application_current_status,
             job_fit_score,
             resume_score,
+            application_interviewer,
+            application_meeting_link,
+            application_decline_reason,
+            application_rejected_reason,
             t_applicant(app_first_name, app_last_name),
+            t_resume(res_pdf_link),
             applied_date:t_date!t_applications_applied_date_id_fkey(full_date)
           )
         )
@@ -193,7 +198,6 @@ export default function JobOrders({
 
     const mapped: JobOrder[] = (data || []).map((row: any) => ({
       jo_id: row.jo_id,
-      jo_reference_number: row.jo_reference_number || "",
       is_active: row.is_active ?? false,
       is_posted: row.is_posted ?? false,
       jo_country: row.jo_country || "",
@@ -225,11 +229,11 @@ export default function JobOrders({
           application_current_status:
             app.application_current_status || "Applied",
           applied_date: app.applied_date?.full_date || "",
-          interviewer: app.interviewer || "",
-          salary: app.salary || "",
-          meeting_link: app.meeting_link || "",
-          declined_reason: app.declined_reason || "",
-          rejected_reason: app.rejected_reason || ""
+          interviewer: app.application_interviewer || "",
+          meeting_link: app.application_meeting_link || "",
+          declined_reason: app.application_decline_reason || "",
+          rejected_reason: app.application_rejected_reason || "",
+          resume_url: app.t_resume?.res_pdf_link || "",
         })),
       })),
     }));
@@ -439,7 +443,6 @@ export default function JobOrders({
   const handlePostJobOrder = async () => {
     if (
       !jobOrderForm.company_id ||
-      !jobOrderForm.jo_reference_number ||
       !jobOrderForm.jo_deadline ||
       !jobOrderForm.jo_created_by
     ) {
@@ -452,7 +455,6 @@ export default function JobOrders({
     }
     setSaving(true);
 
-    // Get deadline date_id from t_date
     const { data: dateData } = await supabase
       .from("t_date")
       .select("date_id")
@@ -472,7 +474,6 @@ export default function JobOrders({
       .insert({
         company_id: Number(jobOrderForm.company_id),
         jo_country: jobOrderForm.jo_country,
-        jo_reference_number: jobOrderForm.jo_reference_number,
         jo_deadline_id: dateData.date_id,
         jo_created_by: Number(jobOrderForm.jo_created_by),
         is_active: jobOrderForm.is_active,
@@ -487,7 +488,6 @@ export default function JobOrders({
       return;
     }
 
-    // Insert all positions
     for (const pos of positions) {
       await supabase.from("t_job_positions").insert({
         jo_id: newJO.jo_id,
@@ -516,7 +516,6 @@ export default function JobOrders({
     setJobOrderForm({
       company_id: "",
       jo_country: "",
-      jo_reference_number: "",
       jo_deadline: "",
       jo_created_by: "",
       is_active: true,
@@ -536,7 +535,6 @@ export default function JobOrders({
 
   const filteredJobOrders = jobOrders.filter((jo) => {
     const matchesSearch =
-      jo.jo_reference_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
       jo.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       jo.positions.some((pos) =>
         pos.job_title.toLowerCase().includes(searchTerm.toLowerCase()),
@@ -613,9 +611,6 @@ export default function JobOrders({
                 <Briefcase className="w-8 h-8 text-green-600" />
               </div>
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 font-mono">
-                  {selectedJobOrder.jo_reference_number}
-                </h1>
                 <p className="text-lg text-gray-700 mt-1">
                   {selectedJobOrder.company_name}
                 </p>
@@ -782,10 +777,6 @@ export default function JobOrders({
                   </div>
                   <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-2">
                     <p className="text-sm text-gray-600">
-                      <span className="font-semibold">Job Order:</span>{" "}
-                      {selectedPosition.jobOrder.jo_reference_number}
-                    </p>
-                    <p className="text-sm text-gray-600">
                       <span className="font-semibold">Company:</span>{" "}
                       {selectedPosition.jobOrder.company_name}
                     </p>
@@ -936,7 +927,6 @@ export default function JobOrders({
                           "Job Fit Score",
                           "Status",
                           "Interviewer",
-                          "Salary",
                           "Applied Date",
                         ].map((h) => (
                           <th
@@ -976,7 +966,7 @@ export default function JobOrders({
                           return (
                             <tr>
                               <td
-                                colSpan={7}
+                                colSpan={6}
                                 className="px-6 py-8 text-center text-gray-500"
                               >
                                 No applicants found
@@ -987,15 +977,14 @@ export default function JobOrders({
                         return filtered.map((applicant) => (
                           <tr
                             key={applicant.application_id}
-                            className="hover:bg-gray-50"
+                            className="hover:bg-gray-50 cursor-pointer"
                             onClick={() => {
                               setSelectedApplicant(applicant);
                               setApplicantEditForm({
-                                interviewer: applicant.interviewer || '',
-                                salary: applicant.salary || '',
-                                meetingLink: applicant.meeting_link || '',
-                                declinedReason: applicant.declined_reason || '',
-                                rejectedReason: applicant.rejected_reason || ''
+                                interviewer: applicant.interviewer || "",
+                                meetingLink: applicant.meeting_link || "",
+                                declinedReason: applicant.declined_reason || "",
+                                rejectedReason: applicant.rejected_reason || "",
                               });
                             }}
                           >
@@ -1037,7 +1026,7 @@ export default function JobOrders({
                                   )
                                 }
                                 className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.application_current_status)}`}
-                                onClick= {(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}
                               >
                                 {[
                                   "Applied",
@@ -1054,10 +1043,9 @@ export default function JobOrders({
                               </select>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {applicant.interviewer || <span className="text-gray-400">—</span>}
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                              {applicant.salary || <span className="text-gray-400">—</span>}
+                              {applicant.interviewer || (
+                                <span className="text-gray-400">—</span>
+                              )}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {applicant.applied_date}
@@ -1073,7 +1061,7 @@ export default function JobOrders({
                 <button
                   onClick={() => setSelectedPosition(null)}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
+                >
                   Close
                 </button>
                 <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
@@ -1088,7 +1076,10 @@ export default function JobOrders({
         {selectedApplicant && (
           <div
             className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
-            onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}
+            onClick={() => {
+              setSelectedApplicant(null);
+              setIsEditingApplicant(false);
+            }}
           >
             <div
               className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
@@ -1099,19 +1090,28 @@ export default function JobOrders({
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-green-600 font-bold text-xl">
-                      {selectedApplicant.app_first_name[0]}{selectedApplicant.app_last_name[0]}
+                      {selectedApplicant.app_first_name[0]}
+                      {selectedApplicant.app_last_name[0]}
                     </span>
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
-                      {selectedApplicant.app_first_name} {selectedApplicant.app_last_name}
+                      {selectedApplicant.app_first_name}{" "}
+                      {selectedApplicant.app_last_name}
                     </h2>
-                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mt-1 ${getApplicantStatusColor(selectedApplicant.application_current_status)}`}>
+                    <span
+                      className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mt-1 ${getApplicantStatusColor(selectedApplicant.application_current_status)}`}
+                    >
                       {selectedApplicant.application_current_status}
                     </span>
                   </div>
                 </div>
-                <button onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}>
+                <button
+                  onClick={() => {
+                    setSelectedApplicant(null);
+                    setIsEditingApplicant(false);
+                  }}
+                >
                   <X className="w-6 h-6 text-gray-500" />
                 </button>
               </div>
@@ -1121,19 +1121,31 @@ export default function JobOrders({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Resume Score</p>
-                    <p className={`text-base ${getScoreColor(selectedApplicant.resume_score)}`}>
+                    <p
+                      className={`text-base ${getScoreColor(selectedApplicant.resume_score)}`}
+                    >
                       {selectedApplicant.resume_score?.toFixed(1)}%
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Job Fit Score</p>
-                    <p className={`text-base ${getScoreColor(selectedApplicant.job_fit_score)}`}>
+                    <p
+                      className={`text-base ${getScoreColor(selectedApplicant.job_fit_score)}`}
+                    >
                       {selectedApplicant.job_fit_score?.toFixed(1)}%
                     </p>
                   </div>
                   <div>
                     <p className="text-sm text-gray-500 mb-1">Applied Date</p>
-                    <p className="text-base text-gray-900">{selectedApplicant.applied_date || '—'}</p>
+                    <p className="text-base text-gray-900">
+                      {selectedApplicant.applied_date || "—"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Salary Range</p>
+                    <p className="text-base text-gray-900">
+                      {selectedPosition?.position.job_salary_range || "—"}
+                    </p>
                   </div>
                 </div>
 
@@ -1144,28 +1156,19 @@ export default function JobOrders({
                     <input
                       type="text"
                       value={applicantEditForm.interviewer}
-                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, interviewer: e.target.value })}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          interviewer: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="Enter interviewer name"
                     />
                   ) : (
-                    <p className="text-base text-gray-900">{selectedApplicant.interviewer || '—'}</p>
-                  )}
-                </div>
-
-                {/* Salary */}
-                <div>
-                  <p className="text-sm text-gray-500 mb-2">Salary</p>
-                  {isEditingApplicant ? (
-                    <input
-                      type="text"
-                      value={applicantEditForm.salary}
-                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, salary: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-                      placeholder="e.g. $5,000/month"
-                    />
-                  ) : (
-                    <p className="text-base text-gray-900">{selectedApplicant.salary || '—'}</p>
+                    <p className="text-base text-gray-900">
+                      {selectedApplicant.interviewer || "—"}
+                    </p>
                   )}
                 </div>
 
@@ -1176,16 +1179,27 @@ export default function JobOrders({
                     <input
                       type="text"
                       value={applicantEditForm.meetingLink}
-                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, meetingLink: e.target.value })}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          meetingLink: e.target.value,
+                        })
+                      }
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="https://meet.example.com/..."
                     />
                   ) : selectedApplicant.meeting_link ? (
-                    <a href={selectedApplicant.meeting_link} target="_blank" rel="noopener noreferrer"
-                      className="text-green-600 hover:underline text-sm break-all">
+                    <a
+                      href={selectedApplicant.meeting_link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-600 hover:underline text-sm break-all"
+                    >
                       {selectedApplicant.meeting_link}
                     </a>
-                  ) : <p className="text-gray-400">—</p>}
+                  ) : (
+                    <p className="text-gray-400">—</p>
+                  )}
                 </div>
 
                 {/* Declined Reason */}
@@ -1194,16 +1208,25 @@ export default function JobOrders({
                   {isEditingApplicant ? (
                     <textarea
                       value={applicantEditForm.declinedReason}
-                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, declinedReason: e.target.value })}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          declinedReason: e.target.value,
+                        })
+                      }
                       rows={3}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="Enter declined reason (if applicable)"
                     />
                   ) : selectedApplicant.declined_reason ? (
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                      <p className="text-orange-800">{selectedApplicant.declined_reason}</p>
+                      <p className="text-orange-800">
+                        {selectedApplicant.declined_reason}
+                      </p>
                     </div>
-                  ) : <p className="text-gray-400">—</p>}
+                  ) : (
+                    <p className="text-gray-400">—</p>
+                  )}
                 </div>
 
                 {/* Rejected Reason */}
@@ -1212,16 +1235,25 @@ export default function JobOrders({
                   {isEditingApplicant ? (
                     <textarea
                       value={applicantEditForm.rejectedReason}
-                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, rejectedReason: e.target.value })}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          rejectedReason: e.target.value,
+                        })
+                      }
                       rows={3}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
                       placeholder="Enter rejected reason (if applicable)"
                     />
                   ) : selectedApplicant.rejected_reason ? (
                     <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                      <p className="text-red-800">{selectedApplicant.rejected_reason}</p>
+                      <p className="text-red-800">
+                        {selectedApplicant.rejected_reason}
+                      </p>
                     </div>
-                  ) : <p className="text-gray-400">—</p>}
+                  ) : (
+                    <p className="text-gray-400">—</p>
+                  )}
                 </div>
 
                 {/* Resume */}
@@ -1232,23 +1264,31 @@ export default function JobOrders({
                       <h3 className="font-bold text-blue-900">Resume</h3>
                     </div>
                     <div className="flex space-x-2">
-                      
-                       <a href={selectedApplicant.resume_url || "#"}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
-                      >
-                        <Eye className="w-4 h-4" />
-                        <span>View</span>
-                      </a>
-                      
-                      <a href={selectedApplicant.resume_url || "#"}
-                        download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
-                        className="flex items-center space-x-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
-                      >
-                        <Download className="w-4 h-4" />
-                        <span>Download PDF</span>
-                      </a>
+                      {selectedApplicant.resume_url ? (
+                        <>
+                          <a
+                            href={selectedApplicant.resume_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                          >
+                            <Eye className="w-4 h-4" />
+                            <span>View</span>
+                          </a>
+                          <a
+                            href={selectedApplicant.resume_url}
+                            download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
+                            className="flex items-center space-x-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                          >
+                            <Download className="w-4 h-4" />
+                            <span>Download PDF</span>
+                          </a>
+                        </>
+                      ) : (
+                        <span className="text-sm text-gray-400 italic">
+                          No resume uploaded
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1258,17 +1298,22 @@ export default function JobOrders({
               <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-between items-center">
                 <div className="relative group">
                   <button
-                    disabled={selectedApplicant.application_current_status !== 'Interviewed'}
+                    disabled={
+                      selectedApplicant.application_current_status !==
+                      "Interviewed"
+                    }
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      selectedApplicant.application_current_status === 'Interviewed'
-                        ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
-                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      selectedApplicant.application_current_status ===
+                      "Interviewed"
+                        ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
                     }`}
                   >
                     <Send className="w-4 h-4" />
                     <span>Send Offer</span>
                   </button>
-                  {selectedApplicant.application_current_status !== 'Interviewed' && (
+                  {selectedApplicant.application_current_status !==
+                    "Interviewed" && (
                     <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3">
                       Applicant must be interviewed
                     </div>
@@ -1276,7 +1321,10 @@ export default function JobOrders({
                 </div>
                 <div className="flex space-x-3">
                   <button
-                    onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}
+                    onClick={() => {
+                      setSelectedApplicant(null);
+                      setIsEditingApplicant(false);
+                    }}
                     className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
                   >
                     Close
@@ -1284,22 +1332,54 @@ export default function JobOrders({
                   {isEditingApplicant ? (
                     <button
                       onClick={async () => {
-                        await supabase.from('t_applications').update({
+                        const { error: updateError } = await supabase
+                          .from("t_applications")
+                          .update({
+                            application_interviewer:
+                              applicantEditForm.interviewer,
+                            application_meeting_link:
+                              applicantEditForm.meetingLink,
+                            application_decline_reason:
+                              applicantEditForm.declinedReason,
+                            application_rejected_reason:
+                              applicantEditForm.rejectedReason,
+                          })
+                          .eq(
+                            "application_id",
+                            selectedApplicant.application_id,
+                          );
+
+                        if (updateError) {
+                          alert("Failed to save changes.");
+                          return;
+                        }
+
+                        const updatedApplicant = {
+                          ...selectedApplicant,
                           interviewer: applicantEditForm.interviewer,
-                          salary: applicantEditForm.salary,
                           meeting_link: applicantEditForm.meetingLink,
                           declined_reason: applicantEditForm.declinedReason,
                           rejected_reason: applicantEditForm.rejectedReason,
-                        }).eq('application_id', selectedApplicant.application_id);
+                        };
+
                         if (selectedPosition) {
-                          const updatedApplicants = selectedPosition.position.applicants.map(a =>
-                            a.application_id === selectedApplicant.application_id
-                              ? { ...a, interviewer: applicantEditForm.interviewer, salary: applicantEditForm.salary, meeting_link: applicantEditForm.meetingLink, declined_reason: applicantEditForm.declinedReason, rejected_reason: applicantEditForm.rejectedReason }
-                              : a
-                          );
-                          setSelectedPosition({ ...selectedPosition, position: { ...selectedPosition.position, applicants: updatedApplicants }});
+                          const updatedApplicants =
+                            selectedPosition.position.applicants.map((a) =>
+                              a.application_id ===
+                              selectedApplicant.application_id
+                                ? updatedApplicant
+                                : a,
+                            );
+                          setSelectedPosition({
+                            ...selectedPosition,
+                            position: {
+                              ...selectedPosition.position,
+                              applicants: updatedApplicants,
+                            },
+                          });
                         }
-                        setSelectedApplicant({ ...selectedApplicant, interviewer: applicantEditForm.interviewer, salary: applicantEditForm.salary, meeting_link: applicantEditForm.meetingLink, declined_reason: applicantEditForm.declinedReason, rejected_reason: applicantEditForm.rejectedReason });
+
+                        setSelectedApplicant(updatedApplicant);
                         setIsEditingApplicant(false);
                       }}
                       className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
@@ -1319,7 +1399,7 @@ export default function JobOrders({
             </div>
           </div>
         )}
-  
+
         {/* Add Position Modal */}
         {showAddPositionModal && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -1514,18 +1594,6 @@ export default function JobOrders({
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Reference Number <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="text"
-                      value={jobOrderForm.jo_reference_number}
-                      onChange={(e) =>
-                        setJobOrderForm({
-                          ...jobOrderForm,
-                          jo_reference_number: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., REF-2026-001"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600 font-mono"
-                    />
                   </div>
 
                   <div>
@@ -1999,9 +2067,7 @@ export default function JobOrders({
                     <div>
                       <h3
                         className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
-                      >
-                        {jo.jo_reference_number}
-                      </h3>
+                      ></h3>
                       <p
                         className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
                       >

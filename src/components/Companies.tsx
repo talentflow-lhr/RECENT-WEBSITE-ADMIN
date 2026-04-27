@@ -15,7 +15,6 @@ import { supabase } from "./supabaseClient";
 
 interface JobOrderSummary {
   jo_id: number;
-  jo_reference_number: string;
   is_active: boolean | null;
   is_posted: boolean;
   jo_deadline: string;
@@ -81,10 +80,9 @@ export default function Companies({
       company_email,
       t_job_orders(
         jo_id,
-        jo_reference_number,
         is_active,
         is_posted,
-        jo_deadline_id,
+        deadline:t_date!t_job_orders_jo_deadline_id_fkey(full_date),
         t_job_positions(
           position_id,
           t_applications(application_id)
@@ -108,10 +106,9 @@ export default function Companies({
       company_email: row.company_email || "",
       job_orders: (row.t_job_orders || []).map((jo: any) => ({
         jo_id: jo.jo_id,
-        jo_reference_number: jo.jo_reference_number || "",
         is_active: jo.is_active ?? null,
         is_posted: jo.is_posted ?? false,
-        jo_deadline: jo.jo_deadline_id || "",
+        jo_deadline: jo.deadline?.full_date || "",
         position_count: (jo.t_job_positions || []).length,
         applicant_count: (jo.t_job_positions || []).reduce(
           (sum: number, pos: any) => sum + (pos.t_applications || []).length,
@@ -258,6 +255,7 @@ export default function Companies({
   };
 
   const getStatusLabel = (is_active: boolean | null, is_posted: boolean) => {
+    if (!is_posted) return "Draft";
     if (is_active === null) return "On Hold";
     if (is_active) return "Active";
     return "Closed";
@@ -271,6 +269,7 @@ export default function Companies({
   };
 
   const getSelectValue = (is_active: boolean | null, is_posted: boolean) => {
+    if (!is_posted) return "draft";
     if (is_active === null) return "onhold";
     if (is_active) return "active";
     return "closed";
@@ -279,12 +278,7 @@ export default function Companies({
   const filteredCompanies = companies.filter(
     (company) =>
       company.company_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      company.company_country
-        .toLowerCase()
-        .includes(searchTerm.toLowerCase()) ||
-      company.job_orders.some((jo) =>
-        jo.jo_reference_number.toLowerCase().includes(searchTerm.toLowerCase()),
-      ),
+      company.company_country.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const totalJobOrders = companies.reduce(
@@ -447,7 +441,7 @@ export default function Companies({
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Search companies, job orders..."
+            placeholder="Search companies or countries..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
@@ -519,38 +513,44 @@ export default function Companies({
                       )}
                     </div>
                   </div>
-                  <div className="text-right hidden sm:block">
-                    <p className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  <div className="text-right hidden sm:block mr-4">
+                    <p
+                      className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
                       Active Job Orders
                     </p>
                     <p className="text-lg font-bold text-blue-600">
-                      {company.job_orders.filter((jo) => jo.is_active === true).length}
+                      {
+                        company.job_orders.filter(
+                          (jo) => jo.is_active === true && jo.is_posted,
+                        ).length
+                      }
                     </p>
                   </div>
-                    <div
-                      className="flex space-x-1"
-                      onClick={(e) => e.stopPropagation()}
+                  <div
+                    className="flex space-x-1"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => openEdit(company)}
+                      className={`p-2 rounded-lg ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-600 hover:bg-blue-50"}`}
                     >
-                      <button
-                        onClick={() => openEdit(company)}
-                        className={`p-2 rounded-lg ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-600 hover:bg-blue-50"}`}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(company.company_id)}
-                        className={`p-2 rounded-lg ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </div>
-                    {expandedCompanies.has(company.company_id) ? (
-                      <ChevronDown className="w-5 h-5 text-gray-400" />
-                    ) : (
-                      <ChevronRight className="w-5 h-5 text-gray-400" />
-                    )}
+                      <Edit className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(company.company_id)}
+                      className={`p-2 rounded-lg ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
-                
+                  {expandedCompanies.has(company.company_id) ? (
+                    <ChevronDown className="w-5 h-5 text-gray-400 ml-2" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5 text-gray-400 ml-2" />
+                  )}
+                </div>
+
                 {/* Expanded Job Orders */}
                 {expandedCompanies.has(company.company_id) && (
                   <div
@@ -577,38 +577,74 @@ export default function Companies({
                                 <Briefcase className="w-5 h-5 text-blue-600" />
                                 <div>
                                   <p
-                                    className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                                    className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}
                                   >
-                                    {jo.jo_reference_number}
+                                    Job Order #{jo.jo_id}
                                   </p>
                                   {/* Status Dropdown */}
-                                  <div className="relative inline-block mt-1" onClick={(e) => e.stopPropagation()}>
+                                  <div
+                                    className="relative inline-block mt-1"
+                                    onClick={(e) => e.stopPropagation()}
+                                  >
                                     {editingStatus === jo.jo_id ? (
-                              <select
-                                value={getSelectValue(jo.is_active, jo.is_posted)}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  if (val === "active") handleStatusUpdate(jo.jo_id, true, true);
-                                  else if (val === "closed") handleStatusUpdate(jo.jo_id, false, true);
-                                  else if (val === "onhold") handleStatusUpdate(jo.jo_id, null, true);
-                                }}
-                                onBlur={() => setEditingStatus(null)}
-                                autoFocus
-                                className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none ${getStatusColor(jo.is_active, jo.is_posted)}`}
-                                >
-                                <option value="active">Active</option>
-                                <option value="closed">Closed</option>
-                                <option value="onhold">On Hold</option>
-                              </select>
-                            ) : (
-                              <button
-                                onClick={() => setEditingStatus(jo.jo_id)}
-                                className={`text-xs px-2 py-1 rounded-full flex items-center space-x-1 hover:opacity-80 transition-opacity ${getStatusColor(jo.is_active, jo.is_posted)}`}
-                                >
-                                <span>{getStatusLabel(jo.is_active, jo.is_posted)}</span>
-                                <ChevronDown className="w-3 h-3" />
-                              </button>
-                            )}
+                                      <select
+                                        value={getSelectValue(
+                                          jo.is_active,
+                                          jo.is_posted,
+                                        )}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          if (val === "active")
+                                            handleStatusUpdate(
+                                              jo.jo_id,
+                                              true,
+                                              true,
+                                            );
+                                          else if (val === "closed")
+                                            handleStatusUpdate(
+                                              jo.jo_id,
+                                              false,
+                                              true,
+                                            );
+                                          else if (val === "onhold")
+                                            handleStatusUpdate(
+                                              jo.jo_id,
+                                              null,
+                                              true,
+                                            );
+                                          else if (val === "draft")
+                                            handleStatusUpdate(
+                                              jo.jo_id,
+                                              false,
+                                              false,
+                                            );
+                                          setEditingStatus(null);
+                                        }}
+                                        onBlur={() => setEditingStatus(null)}
+                                        autoFocus
+                                        className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none ${getStatusColor(jo.is_active, jo.is_posted)}`}
+                                      >
+                                        <option value="active">Active</option>
+                                        <option value="closed">Closed</option>
+                                        <option value="onhold">On Hold</option>
+                                        <option value="draft">Draft</option>
+                                      </select>
+                                    ) : (
+                                      <button
+                                        onClick={() =>
+                                          setEditingStatus(jo.jo_id)
+                                        }
+                                        className={`text-xs px-2 py-1 rounded-full flex items-center space-x-1 hover:opacity-80 transition-opacity ${getStatusColor(jo.is_active, jo.is_posted)}`}
+                                      >
+                                        <span>
+                                          {getStatusLabel(
+                                            jo.is_active,
+                                            jo.is_posted,
+                                          )}
+                                        </span>
+                                        <ChevronDown className="w-3 h-3" />
+                                      </button>
+                                    )}
                                   </div>
                                 </div>
                               </div>
@@ -625,28 +661,46 @@ export default function Companies({
                                 className={`px-3 pb-3 border-t ${darkMode ? "border-gray-700" : "border-gray-100"}`}
                               >
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-3">
-                                  <div className={`p-3 rounded-lg ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}>
-                                    <p className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                                  <div
+                                    className={`p-3 rounded-lg ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}
+                                  >
+                                    <p
+                                      className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+                                    >
                                       Positions
                                     </p>
-                                    <p className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                    <p
+                                      className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                                    >
                                       {jo.position_count}
                                     </p>
                                   </div>
-                                  <div className={`p-3 rounded-lg ${darkMode ? "bg-green-900" : "bg-green-50"}`}>
-                                    <p className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                                  <div
+                                    className={`p-3 rounded-lg ${darkMode ? "bg-green-900" : "bg-green-50"}`}
+                                  >
+                                    <p
+                                      className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+                                    >
                                       Applicants
                                     </p>
                                     <div className="flex items-center space-x-2">
                                       <Users className="w-4 h-4 text-green-600" />
-                                      <p className="font-bold text-green-600">{jo.applicant_count}</p>
+                                      <p className="font-bold text-green-600">
+                                        {jo.applicant_count}
+                                      </p>
                                     </div>
                                   </div>
-                                  <div className={`p-3 rounded-lg ${darkMode ? "bg-purple-900" : "bg-purple-50"}`}>
-                                    <p className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}>
+                                  <div
+                                    className={`p-3 rounded-lg ${darkMode ? "bg-purple-900" : "bg-purple-50"}`}
+                                  >
+                                    <p
+                                      className={`text-xs mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+                                    >
                                       Deadline
                                     </p>
-                                    <p className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}>
+                                    <p
+                                      className={`font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                                    >
                                       {jo.jo_deadline || "—"}
                                     </p>
                                   </div>
