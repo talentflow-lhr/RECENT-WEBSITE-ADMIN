@@ -15,6 +15,8 @@ import {
   TrendingUp,
   Plane,
   UserCheck,
+  CheckSquare,
+  FileText,
 } from "lucide-react";
 import logoImage from "figma:asset/59d793a5637be5743b4000eaed07893258073d54.png";
 import Dashboard from "./Dashboard";
@@ -27,6 +29,7 @@ import Companies from "./Companies";
 import General from "./General";
 import Deployment from "./Deployment";
 import Applicants from "./Applicants";
+import PreDeploymentChecklist from './PreDeploymentChecklist';
 
 interface AdminUser {
   admin_acc_id: number;
@@ -53,7 +56,7 @@ export default function DashboardLayout({
 }: DashboardLayoutProps) {
   const [activeMenu, setActiveMenu] = useState("dashboard");
   const [darkMode, setDarkMode] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -68,6 +71,7 @@ export default function DashboardLayout({
     { id: "applicants", label: "Applicants", icon: UserCheck },
     { id: "joborders", label: "Job Orders", icon: Briefcase },
     { id: "companies", label: "Companies", icon: Building2 },
+    { id: 'predeployment', label: 'Pre-Deployment Checklist', icon: CheckSquare },
     { id: "deployment", label: "Deployment", icon: Plane },
     { id: "general", label: "General", icon: Settings },
   ];
@@ -92,6 +96,8 @@ export default function DashboardLayout({
         return <JobOrders darkMode={darkMode} />;
       case "companies":
         return <Companies darkMode={darkMode} />;
+      case 'predeployment':
+        return <PreDeploymentChecklist darkMode={darkMode} />;
       case "deployment":
         return <Deployment darkMode={darkMode} />;
       default:
@@ -103,11 +109,11 @@ export default function DashboardLayout({
     <div className={`min-h-screen ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}>
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-full ${
-          sidebarOpen ? "w-64" : "w-20"
-        } transition-all duration-300 ${
-          darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"
-        } border-r overflow-hidden z-20`}
+        className={`fixed left-0 top-0 h-full w-64 transition-transform duration-300 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        } ${
+          darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'
+        } border-r overflow-hidden z-40 shadow-2xl`}
       >
         <div className="p-6">
           <div className="flex items-center justify-between mb-6">
@@ -115,7 +121,7 @@ export default function DashboardLayout({
               src={logoImage}
               alt="Logo"
               onClick={() => setActiveMenu("dashboard")}
-              className={`${sidebarOpen ? "w-16 h-16" : "w-12 h-12"} transition-all duration-300 cursor-pointer hover:opacity-80`}
+              className="w-16 h-16 cursor-pointer hover:opacity-80"
             />
             {sidebarOpen && (
               <button
@@ -131,43 +137,26 @@ export default function DashboardLayout({
               </button>
             )}
           </div>
-          {!sidebarOpen && (
-            <div className="flex justify-center mb-6">
-              <button
-                onClick={() => setSidebarOpen(true)}
-                className={`p-2 rounded-lg transition-colors ${
-                  darkMode
-                    ? "hover:bg-gray-700 text-gray-300"
-                    : "hover:bg-gray-100 text-gray-700"
-                }`}
-                title="Expand sidebar"
-              >
-                <Menu className="w-5 h-5" />
-              </button>
-            </div>
-          )}
           <nav className="space-y-2">
             {menuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveMenu(item.id)}
-                  className={`w-full flex items-center ${
-                    sidebarOpen ? "space-x-3 px-4" : "justify-center px-2"
-                  } py-3 rounded-lg transition-all duration-300 ${
+                  onClick={() =>{
+                    setActiveMenu(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-300 ${
                     activeMenu === item.id
-                      ? "bg-green-600 text-white"
+                      ? 'bg-green-600 text-white'
                       : darkMode
-                        ? "text-gray-300 hover:bg-gray-700"
-                        : "text-gray-700 hover:bg-gray-100"
+                      ? 'text-gray-300 hover:bg-gray-700'
+                      : 'text-gray-700 hover:bg-gray-100'
                   }`}
-                  title={!sidebarOpen ? item.label : undefined}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
-                  {sidebarOpen && (
                     <span className="truncate">{item.label}</span>
-                  )}
                 </button>
               );
             })}
@@ -176,11 +165,7 @@ export default function DashboardLayout({
       </aside>
 
       {/* Main content */}
-      <div
-        className={`transition-all duration-300 ${
-          sidebarOpen ? "ml-64" : "ml-20"
-        }`}
-      >
+      <div className="w-full">
         {/* Header */}
         <header
           className={`sticky top-0 z-10 ${
@@ -189,12 +174,21 @@ export default function DashboardLayout({
               : "bg-white border-gray-200"
           } border-b`}
         >
-          <div className="flex items-center justify-between px-6 py-4">
-            <h1
-              className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
-            >
-              {menuItems.find((item) => item.id === activeMenu)?.label}
-            </h1>
+           <div className="flex items-center justify-between px-6 py-4">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                className={`p-2 rounded-lg ${
+                  darkMode ? 'hover:bg-gray-700 text-gray-300' : 'hover:bg-gray-100 text-gray-700'
+                }`}
+                title="Open menu"
+              >
+                <Menu className="w-6 h-6" />
+              </button>
+              <h1 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                {menuItems.find((item) => item.id === activeMenu)?.label}
+              </h1>
+            </div>
             <div className="flex items-center space-x-4">
               {/* Logged in user info */}
               <div
