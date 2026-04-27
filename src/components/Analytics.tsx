@@ -256,12 +256,12 @@ export default function Analytics({
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: { labels: { color: darkMode ? "#fff" : "#000" } },
+      legend: { labels: { color: darkMode ? "#E5E7EB" : "#000" } },
       tooltip: {
         backgroundColor: darkMode ? "#1F2937" : "#fff",
         titleColor: darkMode ? "#fff" : "#000",
-        bodyColor: darkMode ? "#fff" : "#000",
-        borderColor: darkMode ? "#374151" : "#ccc",
+        bodyColor: darkMode ? "#E5E7EB" : "#000",
+        borderColor: darkMode ? "#4B5563" : "#ccc",
         borderWidth: 1,
       },
     },
@@ -283,13 +283,13 @@ export default function Analytics({
     plugins: {
       legend: {
         position: "bottom" as const,
-        labels: { color: darkMode ? "#fff" : "#000", padding: 15 },
+        labels: { color: darkMode ? "#E5E7EB" : "#000", padding: 15 },
       },
       tooltip: {
         backgroundColor: darkMode ? "#1F2937" : "#fff",
         titleColor: darkMode ? "#fff" : "#000",
-        bodyColor: darkMode ? "#fff" : "#000",
-        borderColor: darkMode ? "#374151" : "#ccc",
+        bodyColor: darkMode ? "#E5E7EB" : "#000",
+        borderColor: darkMode ? "#4B5563" : "#ccc",
         borderWidth: 1,
         callbacks: {
           label: function (context: any) {
@@ -337,6 +337,7 @@ export default function Analytics({
           >
             {overviewStats.totalApplications.toLocaleString()}
           </p>
+          <p className="text-green-600 text-sm mt-2"> ↑ 12% from last month </p> {/*this is hardcoded, need mo yata i call yung up down haha idk how */}
         </div>
         <div
           className={`rounded-xl shadow-md p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}
@@ -351,6 +352,7 @@ export default function Analytics({
           >
             {overviewStats.acceptanceRate.toFixed(1)}%
           </p>
+          <p className="text-green-600 text-sm mt-2">↑ 2.3% from last month</p> {/*also hardcoded */}
         </div>
         <div
           className={`rounded-xl shadow-md p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}
@@ -365,6 +367,7 @@ export default function Analytics({
           >
             {overviewStats.activeJobOrders.toLocaleString()}
           </p>
+          <p className="text-red-600 text-sm mt-2">↓ 3 from last month</p> {/*also hardcoded */}
         </div>
       </div>
 
