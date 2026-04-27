@@ -7,6 +7,9 @@ import {
   Briefcase,
   Award,
   BookOpen,
+  Send, 
+ // FileText, // reserved for resume view feature
+ // Eye, // reserved for resume view feature
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -38,12 +41,26 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const [filterJobOrder, setFilterJobOrder] = useState("All");
+  const [filterPosition, setFilterPosition] = useState("All");
+  const [sortBy, setSortBy] = useState("none");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editForm, setEditForm] = useState({
+    interviewer: "",
+    salary: "",
+    meetingLink: "",
+    declinedReason: "",
+    rejectedReason: "",
+  });
+
+
   const statuses = [
     "Applied",
-    "AI-screened",
     "Shortlist",
     "Scheduled",
+    "Interviewed", 
     "Accepted",
+    "Declined",
     "Rejected",
   ];
 
@@ -140,29 +157,52 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
     );
   };
 
-  const filteredApplicants = applicants.filter((a) => {
-    const fullName = `${a.app_first_name} ${a.app_last_name}`.toLowerCase();
-    const matchesSearch =
-      fullName.includes(searchTerm.toLowerCase()) ||
-      a.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      a.job_order_ref.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter =
-      filterStatus === "All" || a.application_current_status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  const uniqueJobOrders = Array.from(new Set(applicants.map((a) => a.job_order_ref))).sort();
+  const uniquePositions = Array.from(new Set(applicants.map((a) => a.position))).sort();
+
+  const filteredApplicants = (() => {
+    let filtered = applicants.filter((a) => {
+      const fullName = `${a.app_first_name} ${a.app_last_name}`.toLowerCase();
+      const matchesSearch =
+        fullName.includes(searchTerm.toLowerCase()) ||
+        a.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        a.job_order_ref.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesFilter =
+        filterStatus === "All" || a.application_current_status === filterStatus;
+      const matchesJobOrder =
+        filterJobOrder === "All" || a.job_order_ref === filterJobOrder;
+      const matchesPosition =
+        filterPosition === "All" || a.position === filterPosition;
+      return matchesSearch && matchesFilter && matchesJobOrder && matchesPosition;
+    });
+
+    if (sortBy === "resume-high-to-low") {
+      filtered = [...filtered].sort((a, b) => b.resume_score - a.resume_score);
+    } else if (sortBy === "resume-low-to-high") {
+      filtered = [...filtered].sort((a, b) => a.resume_score - b.resume_score);
+    } else if (sortBy === "jobfit-high-to-low") {
+      filtered = [...filtered].sort((a, b) => b.job_fit_score - a.job_fit_score);
+    } else if (sortBy === "jobfit-low-to-high") {
+      filtered = [...filtered].sort((a, b) => a.job_fit_score - b.job_fit_score);
+    }
+
+    return filtered;
+  })();
 
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Applied":
         return "bg-gray-100 text-gray-800";
-      case "AI-screened":
-        return "bg-blue-100 text-blue-800";
       case "Shortlist":
         return "bg-purple-100 text-purple-800";
       case "Scheduled":
         return "bg-yellow-100 text-yellow-800";
+      case "Interviewed":
+        return "bg-blue-100 text-blue-800";
       case "Accepted":
         return "bg-green-100 text-green-800";
+      case "Declined":
+        return "bg-orange-100 text-orange-800";
       case "Rejected":
         return "bg-red-100 text-red-800";
       default:
@@ -224,6 +264,44 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         })}
       </div>
 
+       {/* Filter Dropdowns */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+            Filter by Job Order
+          </label>
+          <select
+            value={filterJobOrder}
+            onChange={(e) => setFilterJobOrder(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+            }`}
+          >
+            <option value="All">All Job Orders</option>
+            {uniqueJobOrders.map((jo) => (
+              <option key={jo} value={jo}>{jo}</option>
+            ))}
+          </select>
+        </div>
+        <div className={`rounded-lg shadow-md p-4 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+          <label className={`block text-sm font-medium mb-2 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+            Filter by Position Applied
+          </label>
+          <select
+            value={filterPosition}
+            onChange={(e) => setFilterPosition(e.target.value)}
+            className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+              darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"
+            }`}
+          >
+            <option value="All">All Positions</option>
+            {uniquePositions.map((pos) => (
+              <option key={pos} value={pos}>{pos}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+
       {/* Search and Filter */}
       <div className="flex flex-col sm:flex-row gap-4">
         <div className="relative flex-1">
@@ -257,6 +335,20 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
             ))}
           </select>
         </div>
+        {/*added sort dropdown */}
+       <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value)}
+          className={`px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
+            darkMode ? 'bg-gray-800 border-gray-700 text-white' : 'bg-white border-gray-300 text-gray-900'
+          }`}
+        >
+          <option value="none">Sort By</option>
+          <option value="resume-high-to-low">Resume Score (High to Low)</option>
+          <option value="resume-low-to-high">Resume Score (Low to High)</option>
+          <option value="jobfit-high-to-low">Job Fit Score (High to Low)</option>
+          <option value="jobfit-low-to-high">Job Fit Score (Low to High)</option>
+        </select>
         <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
           <Download className="w-5 h-5" />
           <span>Export</span>
@@ -269,21 +361,10 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       >
         <div className="overflow-x-auto">
           <table className="w-full">
-            <thead className={darkMode ? "bg-gray-700" : "bg-green-50"}>
+            <thead className="bg-green-600">
               <tr>
-                {[
-                  "Name",
-                  "Job Order",
-                  "Position",
-                  "Resume Score",
-                  "Job Fit Score",
-                  "Status",
-                  "Applied Date",
-                ].map((h) => (
-                  <th
-                    key={h}
-                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${darkMode ? "text-gray-300" : "text-gray-500"}`}
-                  >
+                {["Name", "Job Order", "Position Applied", "Resume Score", "Job Fit Score", "Status", "Applied Date"].map((h) => (
+                  <th key={h} className="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                     {h}
                   </th>
                 ))}
@@ -306,11 +387,21 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                   <tr
                     key={applicant.application_id}
                     className={`cursor-pointer transition-colors ${darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}`}
-                    onClick={() => setSelectedApplicant(applicant)}
+                    onClick={() => {
+                      setSelectedApplicant(applicant);
+                      setIsEditing(false);
+                      setEditForm({
+                        interviewer: "",
+                        salary: "",
+                        meetingLink: "",
+                        declinedReason: "",
+                        rejectedReason: "",
+                      });
+                    }}
                   >
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
-                        <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center mr-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center mr-3 ${darkMode ? "bg-green-900" : "bg-green-100"}`}>
                           <span className="text-green-600 font-semibold text-sm">
                             {applicant.app_first_name[0]}
                             {applicant.app_last_name[0]}
@@ -383,16 +474,20 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
 
       {/* Applicant Detail Modal */}
       {selectedApplicant && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div
+          className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+          onClick={() => { setSelectedApplicant(null); setIsEditing(false); }}
+        >
           <div
-            className={`rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
+            className={`rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
+            onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
             <div
               className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
             >
               <div className="flex items-center space-x-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center ${darkMode ? "bg-green-900" : "bg-green-100"}`}>
                   <span className="text-green-600 font-bold text-xl">
                     {selectedApplicant.app_first_name[0]}
                     {selectedApplicant.app_last_name[0]}
@@ -560,19 +655,95 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
               </div>
             </div>
 
+            {/* Editable Fields */}
+            {isEditing && (
+              <div className="p-6 pt-0 space-y-4">
+                <div>
+                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interviewer</p>
+                  <input
+                    type="text"
+                    value={editForm.interviewer}
+                    onChange={(e) => setEditForm({ ...editForm, interviewer: e.target.value })}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    placeholder="Enter interviewer name"
+                  />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Salary</p>
+                  <input
+                    type="text"
+                    value={editForm.salary}
+                    onChange={(e) => setEditForm({ ...editForm, salary: e.target.value })}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    placeholder="Enter salary (e.g., ₱25,000/month)"
+                  />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Declined Reason</p>
+                  <textarea
+                    value={editForm.declinedReason}
+                    onChange={(e) => setEditForm({ ...editForm, declinedReason: e.target.value })}
+                    rows={3}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    placeholder="Enter declined reason (if applicable)"
+                  />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rejected Reason</p>
+                  <textarea
+                    value={editForm.rejectedReason}
+                    onChange={(e) => setEditForm({ ...editForm, rejectedReason: e.target.value })}
+                    rows={3}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    placeholder="Enter rejected reason (if applicable)"
+                  />
+                </div>
+              </div>
+            )}
+
             {/* Modal Footer */}
-            <div
-              className={`sticky bottom-0 border-t px-6 py-4 flex justify-end space-x-3 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}
-            >
-              <button
-                onClick={() => setSelectedApplicant(null)}
-                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-              >
-                Close
-              </button>
-              <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                Edit Applicant
-              </button>
+            <div className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}>
+              <div className="relative group">
+                <button
+                  disabled={selectedApplicant.application_current_status !== "Accepted"}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    selectedApplicant.application_current_status === "Accepted"
+                      ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
+                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  }`}
+                >
+                  <Send className="w-4 h-4" />
+                  <span>Send Offer</span>
+                </button>
+                {selectedApplicant.application_current_status !== "Accepted" && (
+                  <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
+                    Applicant must be accepted first
+                  </div>
+                )}
+              </div>
+              <div className="flex space-x-3">
+                <button
+                  onClick={() => { setSelectedApplicant(null); setIsEditing(false); }}
+                  className={`px-4 py-2 border rounded-lg transition-colors ${darkMode ? "border-gray-600 hover:bg-gray-700 text-white" : "border-gray-300 hover:bg-gray-100 text-gray-900"}`}
+                >
+                  Close
+                </button>
+                {isEditing ? (
+                  <button
+                    onClick={() => setIsEditing(false)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  >
+                    Save Changes
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setIsEditing(true)}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  >
+                    Edit Application
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
