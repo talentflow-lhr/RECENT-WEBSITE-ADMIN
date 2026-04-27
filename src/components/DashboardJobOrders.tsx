@@ -1,3 +1,9 @@
+{ /*Initial implementation of the Job Orders Analytics Dashboard.
+
+Includes UI layout, charts, KPI cards, and partial Supabase integration (stats + at-risk job orders). Other sections currently use mock data and will be replaced with real queries in future updates.
+
+TODO: complete backend integration, improve filtering logic, and add error handling. */}
+
 import { useState, useEffect } from "react";
 import { Line, Bar } from "react-chartjs-2";
 import {
@@ -876,7 +882,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
               >
                 Period:
               </label>
-              <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
+              <div className={`flex space-x-1 rounded-lg p-1 ${darkMode ? "bg-gray-700" : "bg-gray-100"}`}>
                 {["month", "quarter", "ytd", "year"].map((period) => (
                   <button
                     key={period}
@@ -1497,7 +1503,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
           <p
             className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"} mt-1`}
           >
-            Job orders open more than 60 days or with low completion rates
+            Job orders with extended open duration and low completion rates
           </p>
         </div>
         <div className="overflow-x-auto">
@@ -1596,7 +1602,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                       {job.projectOfficer}
                     </td>
                     <td
-                      className={`px-3 py-3 text-center text-sm font-bold ${job.daysOpen > 120 ? (darkMode ? "text-red-400" : "text-red-600") : job.daysOpen > 90 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
+                      className={`px-3 py-3 text-center text-sm font-bold ${job.daysOpen > 130 ? (darkMode ? "text-red-400" : "text-red-600") : job.daysOpen > 115 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
                       {job.daysOpen}
                     </td>
@@ -1704,6 +1710,11 @@ export default function DashboardJobOrders({ darkMode = false }) {
                 {label}
               </p>
               <p className={`text-2xl font-bold ${textColor}`}>{value}</p>
+              {label === "Total Period (14 days)" && (
+                <p className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"} mt-1`}>
+                  Applicants / Hired
+                </p>
+              )}
             </div>
           ))}
         </div>
