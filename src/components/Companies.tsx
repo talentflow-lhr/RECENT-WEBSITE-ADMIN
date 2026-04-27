@@ -550,8 +550,7 @@ export default function Companies({
                       <ChevronRight className="w-5 h-5 text-gray-400" />
                     )}
                   </div>
-                </div>
-
+                
                 {/* Expanded Job Orders */}
                 {expandedCompanies.has(company.company_id) && (
                   <div
