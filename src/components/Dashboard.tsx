@@ -467,6 +467,12 @@ export default function Dashboard({
             >
               Monthly Applications
             </h3>
+            <div className={`flex items-center space-x-2 text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+              <span>By:</span>
+              <select className={`text-sm border rounded px-2 py-1 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}>
+                <option>Last 6 Months</option>
+              </select>
+            </div>
           </div>
           {monthlyRegistrations.length === 0 ? (
             <p
