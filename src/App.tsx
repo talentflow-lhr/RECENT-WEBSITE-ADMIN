@@ -1,7 +1,7 @@
 import { useState } from "react";
 import LoginPage from "./components/LoginPage";
 import DashboardLayout from "./components/DashboardLayout";
-
+import { JobOrdersProvider } from './contexts/JobOrdersContext';
 interface AdminUser {
   admin_acc_id: number;
   admin_acc_username: string;
@@ -31,5 +31,9 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
-  return <DashboardLayout adminUser={adminUser} onLogout={handleLogout} />;
+  return (
+    <JobOrdersProvider>
+    <DashboardLayout adminUser={adminUser} onLogout={handleLogout} />;
+    </JobOrdersProvider>
+    );
 }
