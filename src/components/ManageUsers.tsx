@@ -12,8 +12,9 @@ interface User {
   employee_first_name: string;
   employee_middle_name: string;
   employee_last_name: string;
+  employee_suffix: string;
   employee_email: string;
-  employee_number: string;
+  employee_phone_number: string;
   employee_start_date: string;
   employee_is_active: boolean;
   employee_address: string;
@@ -29,7 +30,7 @@ interface FormData {
   employee_last_name: string;
   employee_suffix: string;
   employee_email: string;
-  employee_number: string;
+  employee_phone_number: string;
   employee_address: string;
   role_id: number;
   employee_is_active: boolean;
@@ -53,7 +54,7 @@ export default function ManageUsers({ darkMode = false }) {
     employee_last_name: "",
     employee_suffix: "",
     employee_email: "",
-    employee_number: "",
+    employee_phone_number: "",
     employee_address: "",
     role_id: 1,
     employee_is_active: true,
@@ -82,8 +83,9 @@ export default function ManageUsers({ darkMode = false }) {
         employee_first_name,
         employee_middle_name,
         employee_last_name,
+        employee_suffix,
         employee_email,
-        employee_number,
+        employee_phone_number,
         employee_start_date,
         employee_is_active,
         employee_address,
@@ -104,8 +106,9 @@ export default function ManageUsers({ darkMode = false }) {
       employee_first_name: row.employee_first_name || "",
       employee_middle_name: row.employee_middle_name || "",
       employee_last_name: row.employee_last_name || "",
+      employee_suffix: row.employee_suffix || "",
       employee_email: row.employee_email || "",
-      employee_number: row.employee_number || "",
+      employee_phone_number: row.employee_phone_number || "",
       employee_start_date: row.employee_start_date || "",
       employee_is_active: row.employee_is_active ?? true,
       employee_address: row.employee_address || "",
@@ -125,9 +128,9 @@ export default function ManageUsers({ darkMode = false }) {
       employee_first_name: user.employee_first_name,
       employee_middle_name: user.employee_middle_name,
       employee_last_name: user.employee_last_name,
-      employee_suffix: "",
+      employee_suffix: user.employee_suffix,
       employee_email: user.employee_email,
-      employee_number: user.employee_number,
+      employee_phone_number: user.employee_phone_number,
       employee_address: user.employee_address,
       role_id: user.role_id,
       employee_is_active: user.employee_is_active,
@@ -158,16 +161,15 @@ export default function ManageUsers({ darkMode = false }) {
     setSaving(true);
 
     if (editingUser) {
-      // Update employee
       const { error: updateError } = await supabase
         .from("t_employee")
         .update({
           employee_first_name: formData.employee_first_name,
           employee_middle_name: formData.employee_middle_name,
-         // employee_last_name: formData.employee_last_name, //uncomment if nasa supabase na siya
+          employee_last_name: formData.employee_last_name,
           employee_suffix: formData.employee_suffix,
           employee_email: formData.employee_email,
-          employee_number: formData.employee_number,
+          employee_phone_number: formData.employee_phone_number,
           employee_address: formData.employee_address,
           role_id: formData.role_id,
           employee_is_active: formData.employee_is_active,
@@ -180,21 +182,18 @@ export default function ManageUsers({ darkMode = false }) {
         return;
       }
 
-      // Update username if provided
       if (formData.admin_acc_username && editingUser.has_account) {
         const updatePayload: any = {
           admin_acc_username: formData.admin_acc_username,
         };
         if (formData.admin_acc_password)
           updatePayload.admin_acc_password = formData.admin_acc_password;
-
         await supabase
           .from("t_admin_account")
           .update(updatePayload)
           .eq("employee_id", editingUser.employee_id);
       }
 
-      // Create account if username given and no account yet
       if (
         formData.admin_acc_username &&
         !editingUser.has_account &&
@@ -207,15 +206,15 @@ export default function ManageUsers({ darkMode = false }) {
         });
       }
     } else {
-      // Insert new employee
       const { data: newEmployee, error: insertError } = await supabase
         .from("t_employee")
         .insert({
           employee_first_name: formData.employee_first_name,
           employee_middle_name: formData.employee_middle_name,
           employee_last_name: formData.employee_last_name,
+          employee_suffix: formData.employee_suffix,
           employee_email: formData.employee_email,
-          employee_number: formData.employee_number,
+          employee_phone_number: formData.employee_phone_number,
           employee_address: formData.employee_address,
           role_id: formData.role_id,
           employee_is_active: formData.employee_is_active,
@@ -230,7 +229,6 @@ export default function ManageUsers({ darkMode = false }) {
         return;
       }
 
-      // Create admin account if username and password provided
       if (formData.admin_acc_username && formData.admin_acc_password) {
         await supabase.from("t_admin_account").insert({
           employee_id: newEmployee.employee_id,
@@ -248,9 +246,9 @@ export default function ManageUsers({ darkMode = false }) {
       employee_first_name: "",
       employee_middle_name: "",
       employee_last_name: "",
-      employee_email: "",
       employee_suffix: "",
-      employee_number: "",
+      employee_email: "",
+      employee_phone_number: "",
       employee_address: "",
       role_id: 1,
       employee_is_active: true,
@@ -316,7 +314,7 @@ export default function ManageUsers({ darkMode = false }) {
               employee_last_name: "",
               employee_suffix: "",
               employee_email: "",
-              employee_number: "",
+              employee_phone_number: "",
               employee_address: "",
               role_id: roles[0]?.role_id || 1,
               employee_is_active: true,
@@ -361,6 +359,7 @@ export default function ManageUsers({ darkMode = false }) {
                       className={`font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
                     >
                       {user.employee_first_name} {user.employee_last_name}
+                      {user.employee_suffix ? ` ${user.employee_suffix}` : ""}
                     </h3>
                     <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
                       {user.role_name}
@@ -389,7 +388,7 @@ export default function ManageUsers({ darkMode = false }) {
                   className={`flex items-center space-x-2 text-sm ${darkMode ? "text-gray-300" : "text-gray-600"}`}
                 >
                   <Phone className="w-4 h-4" />
-                  <span>{user.employee_number || "—"}</span>
+                  <span>{user.employee_phone_number || "—"}</span>
                 </div>
                 {user.has_account && (
                   <div
@@ -442,50 +441,88 @@ export default function ManageUsers({ darkMode = false }) {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>First Name</label>
+                  <label
+                    className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  >
+                    First Name
+                  </label>
                   <input
                     type="text"
                     value={formData.employee_first_name}
-                    onChange={(e) => setFormData({ ...formData, employee_first_name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        employee_first_name: e.target.value,
+                      })
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                     placeholder="First name"
                     required
-                    />
+                  />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Middle Name</label>
+                  <label
+                    className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  >
+                    Middle Name
+                  </label>
                   <input
                     type="text"
                     value={formData.employee_middle_name}
-                    onChange={(e) => setFormData({ ...formData, employee_middle_name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        employee_middle_name: e.target.value,
+                      })
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                     placeholder="Middle name"
-                    />
+                  />
                 </div>
               </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Last Name</label>
+                  <label
+                    className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  >
+                    Last Name
+                  </label>
                   <input
                     type="text"
                     value={formData.employee_last_name}
-                    onChange={(e) => setFormData({ ...formData, employee_last_name: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        employee_last_name: e.target.value,
+                      })
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                     placeholder="Last name"
                     required
-                    />
+                  />
                 </div>
                 <div>
-                  <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>Suffix</label>
+                  <label
+                    className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                  >
+                    Suffix
+                  </label>
                   <input
                     type="text"
                     value={formData.employee_suffix}
-                    onChange={(e) => setFormData({ ...formData, employee_suffix: e.target.value })}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        employee_suffix: e.target.value,
+                      })
+                    }
                     className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                     placeholder="e.g., Jr., Sr."
-                    />
+                  />
                 </div>
               </div>
+
               <div>
                 <label
                   className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
@@ -512,11 +549,11 @@ export default function ManageUsers({ darkMode = false }) {
                 </label>
                 <input
                   type="tel"
-                  value={formData.employee_number}
+                  value={formData.employee_phone_number}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
-                      employee_number: e.target.value,
+                      employee_phone_number: e.target.value,
                     })
                   }
                   className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
