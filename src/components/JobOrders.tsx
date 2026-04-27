@@ -11,6 +11,9 @@ import {
   X,
   Trash2,
   ArrowLeft,
+  Send,
+  Eye,
+  FileText,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -22,6 +25,11 @@ interface Applicant {
   job_fit_score: number;
   application_current_status: string;
   applied_date: string;
+  interviewer?: string;
+  salary?: string;
+  meeting_link?: string;
+  declined_reason?: string;
+  rejected_reason?: string;
 }
 
 interface Position {
@@ -95,6 +103,11 @@ export default function JobOrders({
   );
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [selectedApplicant, setSelectedApplicant] = useState<any>(null);
+  const [isEditingApplicant, setIsEditingApplicant] = useState(false);
+  const [applicantEditForm, setApplicantEditForm] = useState({
+    interviewer: '', salary: '', meetingLink: '', declinedReason: '', rejectedReason: ''
+  });
 
   const [jobOrderForm, setJobOrderForm] = useState({
     company_id: "",
@@ -212,6 +225,11 @@ export default function JobOrders({
           application_current_status:
             app.application_current_status || "Applied",
           applied_date: app.applied_date?.full_date || "",
+          interviewer: app.interviewer || "",
+          salary: app.salary || "",
+          meeting_link: app.meeting_link || "",
+          declined_reason: app.declined_reason || "",
+          rejected_reason: app.rejected_reason || ""
         })),
       })),
     }));
@@ -265,6 +283,10 @@ export default function JobOrders({
         return "bg-green-100 text-green-800";
       case "Rejected":
         return "bg-red-100 text-red-800";
+      case "Interviewed":
+        return "bg-blue-100 text-blue-800";
+      case "Declined":
+        return "bg-orange-100 text-orange-800";
       default:
         return "bg-gray-100 text-gray-800";
     }
@@ -796,13 +818,14 @@ export default function JobOrders({
               </div>
 
               {/* Status counts */}
-              <div className="grid grid-cols-2 md:grid-cols-6 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
+              <div className="grid grid-cols-2 md:grid-cols-8 gap-3 px-6 py-4 bg-gray-50 border-b border-gray-200">
                 {[
                   "Applied",
-                  "AI-screened",
                   "Shortlist",
                   "Scheduled",
+                  "Interviewed",
                   "Accepted",
+                  "Declined",
                   "Rejected",
                 ].map((status) => {
                   const count = selectedPosition.position.applicants.filter(
@@ -873,10 +896,11 @@ export default function JobOrders({
                     <option value="All">All Status</option>
                     {[
                       "Applied",
-                      "AI-screened",
                       "Shortlist",
                       "Scheduled",
+                      "Interviewed",
                       "Accepted",
+                      "Declined",
                       "Rejected",
                     ].map((s) => (
                       <option key={s} value={s}>
@@ -911,6 +935,8 @@ export default function JobOrders({
                           "Resume Score",
                           "Job Fit Score",
                           "Status",
+                          "Interviewer",
+                          "Salary",
                           "Applied Date",
                         ].map((h) => (
                           <th
@@ -950,7 +976,7 @@ export default function JobOrders({
                           return (
                             <tr>
                               <td
-                                colSpan={5}
+                                colSpan={7}
                                 className="px-6 py-8 text-center text-gray-500"
                               >
                                 No applicants found
@@ -962,6 +988,16 @@ export default function JobOrders({
                           <tr
                             key={applicant.application_id}
                             className="hover:bg-gray-50"
+                            onClick={() => {
+                              setSelectedApplicant(applicant);
+                              setApplicantEditForm({
+                                interviewer: applicant.interviewer || '',
+                                salary: applicant.salary || '',
+                                meetingLink: applicant.meeting_link || '',
+                                declinedReason: applicant.declined_reason || '',
+                                rejectedReason: applicant.rejected_reason || ''
+                              });
+                            }}
                           >
                             <td className="px-6 py-4 whitespace-nowrap">
                               <div className="flex items-center">
@@ -1001,12 +1037,13 @@ export default function JobOrders({
                                   )
                                 }
                                 className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getApplicantStatusColor(applicant.application_current_status)}`}
+                                onClick= {(e) => e.stopPropagation()}
                               >
                                 {[
                                   "Applied",
-                                  "AI-screened",
                                   "Shortlist",
                                   "Scheduled",
+                                  "Interviewed",
                                   "Accepted",
                                   "Rejected",
                                 ].map((s) => (
@@ -1015,6 +1052,12 @@ export default function JobOrders({
                                   </option>
                                 ))}
                               </select>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {applicant.interviewer || <span className="text-gray-400">—</span>}
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                              {applicant.salary || <span className="text-gray-400">—</span>}
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                               {applicant.applied_date}
@@ -1026,19 +1069,257 @@ export default function JobOrders({
                   </table>
                 </div>
               </div>
-
-              <div className="flex justify-end items-center px-6 py-4 border-t border-gray-200 bg-gray-50">
+              <div className="flex justify-end items-center space-x-3 px-6 py-4 border-t border-gray-200 bg-gray-50">
                 <button
                   onClick={() => setSelectedPosition(null)}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
-                >
+                  >
                   Close
+                </button>
+                <button className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                  Export Applicants
                 </button>
               </div>
             </div>
           </div>
         )}
 
+        {/* Applicant Detail Modal */}
+        {selectedApplicant && (
+          <div
+            className="fixed inset-0 bg-white/30 backdrop-blur-sm flex items-center justify-center z-[60] p-4"
+            onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}
+          >
+            <div
+              className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center space-x-4">
+                  <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <span className="text-green-600 font-bold text-xl">
+                      {selectedApplicant.app_first_name[0]}{selectedApplicant.app_last_name[0]}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-bold text-gray-900">
+                      {selectedApplicant.app_first_name} {selectedApplicant.app_last_name}
+                    </h2>
+                    <span className={`inline-block px-3 py-1 text-xs font-semibold rounded-full mt-1 ${getApplicantStatusColor(selectedApplicant.application_current_status)}`}>
+                      {selectedApplicant.application_current_status}
+                    </span>
+                  </div>
+                </div>
+                <button onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}>
+                  <X className="w-6 h-6 text-gray-500" />
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="p-6 space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Resume Score</p>
+                    <p className={`text-base ${getScoreColor(selectedApplicant.resume_score)}`}>
+                      {selectedApplicant.resume_score?.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Job Fit Score</p>
+                    <p className={`text-base ${getScoreColor(selectedApplicant.job_fit_score)}`}>
+                      {selectedApplicant.job_fit_score?.toFixed(1)}%
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Applied Date</p>
+                    <p className="text-base text-gray-900">{selectedApplicant.applied_date || '—'}</p>
+                  </div>
+                </div>
+
+                {/* Interviewer */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Interviewer</p>
+                  {isEditingApplicant ? (
+                    <input
+                      type="text"
+                      value={applicantEditForm.interviewer}
+                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, interviewer: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Enter interviewer name"
+                    />
+                  ) : (
+                    <p className="text-base text-gray-900">{selectedApplicant.interviewer || '—'}</p>
+                  )}
+                </div>
+
+                {/* Salary */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Salary</p>
+                  {isEditingApplicant ? (
+                    <input
+                      type="text"
+                      value={applicantEditForm.salary}
+                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, salary: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="e.g. $5,000/month"
+                    />
+                  ) : (
+                    <p className="text-base text-gray-900">{selectedApplicant.salary || '—'}</p>
+                  )}
+                </div>
+
+                {/* Meeting Link */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Meeting Link</p>
+                  {isEditingApplicant ? (
+                    <input
+                      type="text"
+                      value={applicantEditForm.meetingLink}
+                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, meetingLink: e.target.value })}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="https://meet.example.com/..."
+                    />
+                  ) : selectedApplicant.meeting_link ? (
+                    <a href={selectedApplicant.meeting_link} target="_blank" rel="noopener noreferrer"
+                      className="text-green-600 hover:underline text-sm break-all">
+                      {selectedApplicant.meeting_link}
+                    </a>
+                  ) : <p className="text-gray-400">—</p>}
+                </div>
+
+                {/* Declined Reason */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Declined Reason</p>
+                  {isEditingApplicant ? (
+                    <textarea
+                      value={applicantEditForm.declinedReason}
+                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, declinedReason: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Enter declined reason (if applicable)"
+                    />
+                  ) : selectedApplicant.declined_reason ? (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                      <p className="text-orange-800">{selectedApplicant.declined_reason}</p>
+                    </div>
+                  ) : <p className="text-gray-400">—</p>}
+                </div>
+
+                {/* Rejected Reason */}
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Rejected Reason</p>
+                  {isEditingApplicant ? (
+                    <textarea
+                      value={applicantEditForm.rejectedReason}
+                      onChange={(e) => setApplicantEditForm({ ...applicantEditForm, rejectedReason: e.target.value })}
+                      rows={3}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
+                      placeholder="Enter rejected reason (if applicable)"
+                    />
+                  ) : selectedApplicant.rejected_reason ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                      <p className="text-red-800">{selectedApplicant.rejected_reason}</p>
+                    </div>
+                  ) : <p className="text-gray-400">—</p>}
+                </div>
+
+                {/* Resume */}
+                <div className="bg-blue-50 border-l-4 border-blue-600 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-2">
+                      <FileText className="w-5 h-5 text-blue-600" />
+                      <h3 className="font-bold text-blue-900">Resume</h3>
+                    </div>
+                    <div className="flex space-x-2">
+                      
+                       <a href={selectedApplicant.resume_url || "#"}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm"
+                      >
+                        <Eye className="w-4 h-4" />
+                        <span>View</span>
+                      </a>
+                      
+                      <a href={selectedApplicant.resume_url || "#"}
+                        download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
+                        className="flex items-center space-x-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm"
+                      >
+                        <Download className="w-4 h-4" />
+                        <span>Download PDF</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="sticky bottom-0 bg-gray-50 border-t border-gray-200 px-6 py-4 flex justify-between items-center">
+                <div className="relative group">
+                  <button
+                    disabled={selectedApplicant.application_current_status !== 'Interviewed'}
+                    className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                      selectedApplicant.application_current_status === 'Interviewed'
+                        ? 'bg-blue-600 hover:bg-blue-700 text-white cursor-pointer'
+                        : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    }`}
+                  >
+                    <Send className="w-4 h-4" />
+                    <span>Send Offer</span>
+                  </button>
+                  {selectedApplicant.application_current_status !== 'Interviewed' && (
+                    <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3">
+                      Applicant must be interviewed
+                    </div>
+                  )}
+                </div>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => { setSelectedApplicant(null); setIsEditingApplicant(false); }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100"
+                  >
+                    Close
+                  </button>
+                  {isEditingApplicant ? (
+                    <button
+                      onClick={async () => {
+                        await supabase.from('t_applications').update({
+                          interviewer: applicantEditForm.interviewer,
+                          salary: applicantEditForm.salary,
+                          meeting_link: applicantEditForm.meetingLink,
+                          declined_reason: applicantEditForm.declinedReason,
+                          rejected_reason: applicantEditForm.rejectedReason,
+                        }).eq('application_id', selectedApplicant.application_id);
+                        if (selectedPosition) {
+                          const updatedApplicants = selectedPosition.position.applicants.map(a =>
+                            a.application_id === selectedApplicant.application_id
+                              ? { ...a, interviewer: applicantEditForm.interviewer, salary: applicantEditForm.salary, meeting_link: applicantEditForm.meetingLink, declined_reason: applicantEditForm.declinedReason, rejected_reason: applicantEditForm.rejectedReason }
+                              : a
+                          );
+                          setSelectedPosition({ ...selectedPosition, position: { ...selectedPosition.position, applicants: updatedApplicants }});
+                        }
+                        setSelectedApplicant({ ...selectedApplicant, interviewer: applicantEditForm.interviewer, salary: applicantEditForm.salary, meeting_link: applicantEditForm.meetingLink, declined_reason: applicantEditForm.declinedReason, rejected_reason: applicantEditForm.rejectedReason });
+                        setIsEditingApplicant(false);
+                      }}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                    >
+                      Save Changes
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsEditingApplicant(true)}
+                      className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg"
+                    >
+                      Edit Application
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+  
         {/* Add Position Modal */}
         {showAddPositionModal && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
