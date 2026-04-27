@@ -437,6 +437,30 @@ export default function ManageRoles({
                   required
                 />
               </div>
+
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Permissions
+                </label>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  {allPermissions.map((permission, index) => {
+            const isChecked = false;
+            return (
+              <label key={index} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  defaultChecked={isChecked}
+                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {permission}
+                </span>
+              </label>
+            );
+          })}
+                </div>
+              </div>
+
               <div className="flex space-x-3 pt-2">
                 <button
                   type="button"
@@ -514,6 +538,28 @@ export default function ManageRoles({
                   rows={3}
                   required
                 />
+              </div>
+              <div>
+                <label className={`block text-sm font-medium mb-2 ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  Permissions
+                </label>
+                <div className={`grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4 ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  {allPermissions.map((permission, index) => {
+            const isChecked = getRolePermissions(editingRole.role_name).includes(permission);
+            return (
+              <label key={index} className="flex items-center space-x-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  defaultChecked={isChecked}
+                  className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                  />
+                <span className={`text-sm ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                  {permission}
+                </span>
+              </label>
+            );
+          })}
+                </div>
               </div>
               <div className="flex space-x-3 pt-2">
                 <button
