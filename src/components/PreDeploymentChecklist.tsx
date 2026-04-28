@@ -462,7 +462,7 @@ export default function PreDeploymentChecklist({
                 <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
                   Position
                 </th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">
+                <th className="px-4 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">
                   <div>Company</div>
                   <div className="text-center normal-case">Job Order</div>
                 </th>
