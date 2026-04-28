@@ -12,6 +12,7 @@ interface Role {
 interface FormData {
   role_name: string;
   role_description: string;
+  permissions: string[];
 }
 
 const allPermissions = [
@@ -56,10 +57,23 @@ export default function ManageRoles({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
   const [saving, setSaving] = useState(false);
+  const [editedPermissions, setEditedPermissions] = useState<Record<number, string[]>>({});
   const [formData, setFormData] = useState<FormData>({
     role_name: "",
     role_description: "",
+    permissions: [],
   });
+
+const getCurrentPermissions = (role: Role) =>
+  editedPermissions[role.role_id] ?? getRolePermissions(role.role_name);
+
+const togglePermission = (roleId: number, permission: string, baseRoleName: string) => {
+  const current = editedPermissions[roleId] ?? getRolePermissions(baseRoleName);
+  const updated = current.includes(permission)
+    ? current.filter((p) => p !== permission)
+    : [...current, permission];
+  setEditedPermissions((prev) => ({ ...prev, [roleId]: updated }));
+};
 
   useEffect(() => {
     fetchRoles();
@@ -112,7 +126,7 @@ export default function ManageRoles({
     await fetchRoles();
     setSaving(false);
     setShowAddModal(false);
-    setFormData({ role_name: "", role_description: "" });
+    setFormData({ role_name: "", role_description: "", permissions: [] });
   };
 
   const handleEditSubmit = async (e: React.FormEvent) => {
@@ -137,7 +151,7 @@ export default function ManageRoles({
     await fetchRoles();
     setSaving(false);
     setEditingRole(null);
-    setFormData({ role_name: "", role_description: "" });
+    setFormData({ role_name: "", role_description: "", permissions: [] });
   };
 
   const handleDelete = async (role_id: number) => {
@@ -197,7 +211,7 @@ export default function ManageRoles({
         </p>
         <button
           onClick={() => {
-            setFormData({ role_name: "", role_description: "" });
+            setFormData({ role_name: "", role_description: "", permissions: [] });
             setShowAddModal(true);
           }}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
@@ -259,6 +273,7 @@ export default function ManageRoles({
                       setFormData({
                         role_name: role.role_name,
                         role_description: role.role_description,
+                        permissions: getRolePermissions(role.role_name),
                       });
                       setEditingRole(role);
                     }}
@@ -333,9 +348,6 @@ export default function ManageRoles({
           </h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {allPermissions.map((permission, index) => {
-              const isChecked = getRolePermissions(
-                selectedRole.role_name,
-              ).includes(permission);
               return (
                 <label
                   key={index}
@@ -347,10 +359,10 @@ export default function ManageRoles({
                 >
                   <input
                     type="checkbox"
-                    checked={isChecked}
-                    onChange={() => {}}
+                    checked={getCurrentPermissions(selectedRole).includes(permission)}
+                    onChange={() => togglePermission(selectedRole.role_id, permission, selectedRole.role_name)}
                     className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                  />
+                    />
                   <span
                     className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                   >
@@ -448,17 +460,22 @@ export default function ManageRoles({
                   className={`grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4 ${darkMode ? "border-gray-700" : "border-gray-200"}`}
                 >
                   {allPermissions.map((permission, index) => {
-                    const isChecked = false;
-                    return (
-                      <label
-                        key={index}
-                        className="flex items-center space-x-2 cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          defaultChecked={isChecked}
-                          className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                        />
+                   return (
+                     <label
+                       key={index}
+                       className="flex items-center space-x-2 cursor-pointer"
+                       >
+                       <input
+                         type="checkbox"
+                         checked={formData.permissions.includes(permission)}
+                         onChange={() => {
+                           const updated = formData.permissions.includes(permission)
+                             ? formData.permissions.filter((p) => p !== permission)
+                             : [...formData.permissions, permission];
+                           setFormData({ ...formData, permissions: updated });
+                         }}
+                         className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+                         />
                         <span
                           className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                         >
@@ -558,19 +575,22 @@ export default function ManageRoles({
                   className={`grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto border rounded-lg p-4 ${darkMode ? "border-gray-700" : "border-gray-200"}`}
                 >
                   {allPermissions.map((permission, index) => {
-                    const isChecked = getRolePermissions(
-                      editingRole.role_name,
-                    ).includes(permission);
                     return (
                       <label
                         key={index}
                         className="flex items-center space-x-2 cursor-pointer"
-                      >
+                        >
                         <input
                           type="checkbox"
-                          defaultChecked={isChecked}
+                          checked={formData.permissions.includes(permission)}
+                          onChange={() => {
+                            const updated = formData.permissions.includes(permission)
+                              ? formData.permissions.filter((p) => p !== permission)
+                              : [...formData.permissions, permission];
+                            setFormData({ ...formData, permissions: updated });
+                          }}
                           className="w-4 h-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
-                        />
+                          />
                         <span
                           className={`text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                         >
