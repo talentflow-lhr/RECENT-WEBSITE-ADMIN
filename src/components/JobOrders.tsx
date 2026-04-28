@@ -767,7 +767,7 @@ export default function JobOrders({
             <div className={`rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
               <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
                 <div>
-                  div className="flex items-center space-x-3">
+                  <div className="flex items-center space-x-3">
                   <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
                       {selectedPosition.position.job_title}
                     </h2>
