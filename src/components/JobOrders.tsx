@@ -588,7 +588,7 @@ export default function JobOrders({
     );
 
     return (
-      <div className="h-full flex flex-col bg-gray-50">
+      <div className={`h-full flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         {/* Header */}
         <div className={`border-b px-6 py-5 shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="max-w-7xl mx-auto">
@@ -679,7 +679,7 @@ export default function JobOrders({
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">Positions</h2>
+             <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Positions</h2>
               <button
                 onClick={() => setShowAddPositionModal(true)}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
@@ -1531,7 +1531,7 @@ export default function JobOrders({
   // Form View
   if (viewMode === "form") {
     return (
-      <div className="h-full flex flex-col bg-gray-50">
+      <div className={`h-full flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
         <div className={`border-b px-6 py-5 shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
           <div className="flex items-center space-x-4 max-w-7xl mx-auto">
             <button
