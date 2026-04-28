@@ -291,10 +291,10 @@ export default function Companies({
   );
 
   const modalForm = (onSubmit: (e: React.FormEvent) => void, title: string) => (
-    <div className="fixed inset-0 backdrop-blur-sm bg-white/30 flex items-center justify-center z-50 p-4">
-      <div className="rounded-xl shadow-xl max-w-md w-full p-6 bg-white">
+    <div className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4 ${darkMode ? "bg-black/40" : "bg-white/30"}`}>
+      <div className={`rounded-xl shadow-xl max-w-md w-full p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">{title}</h2>
+          <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{title}</h2>
           <button
             onClick={() => {
               setShowAddModal(false);
@@ -336,7 +336,7 @@ export default function Companies({
             },
           ].map(({ label, key, placeholder, required }) => (
             <div key={key}>
-              <label className="block text-sm font-medium mb-1 text-gray-700">
+              <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                 {label} {required && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -345,7 +345,7 @@ export default function Companies({
                 onChange={(e) =>
                   setFormData({ ...formData, [key]: e.target.value })
                 }
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-green-600"
+                className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "border-gray-300"}`}
                 placeholder={placeholder}
                 required={required}
               />
@@ -359,7 +359,7 @@ export default function Companies({
                 setEditingCompany(null);
                 resetForm();
               }}
-              className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors text-gray-700"
+              className={`flex-1 px-4 py-2 border rounded-lg transition-colors ${darkMode ? "border-gray-600 text-gray-300 hover:bg-gray-700" : "border-gray-300 text-gray-700 hover:bg-gray-50"}`}
             >
               Cancel
             </button>
