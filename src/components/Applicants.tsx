@@ -33,7 +33,7 @@ interface Applicant {
   experience: string[];
 }
 
-export default function Applicants({ darkMode }: { darkMode: boolean }) {
+export default function Applicants({ darkMode, hasPermission }: { darkMode: boolean , hasPermission: boolean}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(
@@ -506,6 +506,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                           )
                         }
                         className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getStatusColor(applicant.application_current_status)}`}
+                        disabled={!hasPermission}
                       >
                         {statuses.map((s) => (
                           <option key={s} value={s}>

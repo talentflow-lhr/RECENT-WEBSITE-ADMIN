@@ -25,11 +25,12 @@ const allPermissions = [
   "Manage Applicants",
   "View Job Orders",
   "Update Status",
+  "Manage Company", // experimental, check ano labas
 ];
 
 // Since permissions aren't in the DB, we define defaults per role name
 const defaultPermissions: Record<string, string[]> = {
-  Admin: [
+  "Administrator": [
     "All Permissions",
     "Manage Users",
     "Manage Roles",

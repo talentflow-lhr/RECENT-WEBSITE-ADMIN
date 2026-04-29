@@ -12,6 +12,7 @@ interface AdminUser {
     employee_email: string;
     t_role: {
       role_name: string;
+      role_permissions: string[];
     };
   };
 }
