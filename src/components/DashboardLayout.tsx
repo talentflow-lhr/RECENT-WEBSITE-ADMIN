@@ -41,6 +41,7 @@ interface AdminUser {
     employee_email: string;
     t_role: {
       role_name: string;
+      role_permissions: string[];
     };
   };
 }
@@ -67,26 +68,33 @@ export default function DashboardLayout({
   }, [darkMode]);
 
   const menuItems = [
-    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, permission: "View Analytics" },
     {
       id: "dashboardjoborders",
       label: "Dashboard - Job Orders",
       icon: TrendingUp,
+      permission: "View Analytics"
     },
-    { id: "analytics", label: "Analytics", icon: BarChart3 },
-    { id: "users", label: "Manage Users", icon: Users },
-    { id: "roles", label: "Manage Roles", icon: Shield },
-    { id: "applicants", label: "Applicants", icon: UserCheck },
-    { id: "joborders", label: "Job Orders", icon: Briefcase },
-    { id: "companies", label: "Companies", icon: Building2 },
+    { id: "analytics", label: "Analytics", icon: BarChart3, permission: "View Analytics" },
+    { id: "users", label: "Manage Users", icon: Users, permission: "Manage Users"}, // Manage Users
+    { id: "roles", label: "Manage Roles", icon: Shield, permission: "Manage Roles"}, // Manage Roles
+    { id: "applicants", label: "Applicants", icon: UserCheck, permission: "" },
+    { id: "joborders", label: "Job Orders", icon: Briefcase, permission: "View Job Orders" },
+    { id: "companies", label: "Companies", icon: Building2, permission: "Manage Companies"},
     {
       id: "predeployment",
       label: "Pre-Deployment Checklist",
       icon: CheckSquare,
+      permission: "Update Status"
     },
-    { id: "deployment", label: "Deployment", icon: Plane },
-    { id: "general", label: "General", icon: Settings },
+    { id: "deployment", label: "Deployment", icon: Plane, permission: "Update Status"},
+    { id: "general", label: "General", icon: Settings, permission: "" },
   ];
+
+  const availMenuItems = menuItems.filter((item) =>
+    item.permission === "" ||
+    adminUser.t_employee.t_role.role_permissions.includes(item.permission)
+  );
 
   const renderContent = () => {
     switch (activeMenu) {
@@ -150,7 +158,7 @@ export default function DashboardLayout({
             )}
           </div>
           <nav className="space-y-2">
-            {menuItems.map((item) => {
+            {availMenuItems.map((item) => {
               const Icon = item.icon;
               return (
                 <button
@@ -202,7 +210,7 @@ export default function DashboardLayout({
               <h1
                 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
               >
-                {menuItems.find((item) => item.id === activeMenu)?.label}
+                {availMenuItems.find((item) => item.id === activeMenu)?.label}
               </h1>
             </div>
             <div className="flex items-center space-x-4">

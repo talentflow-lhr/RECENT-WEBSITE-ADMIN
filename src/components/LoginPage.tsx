@@ -22,7 +22,7 @@ export default function LoginPage({ onLogin }) {
           employee_first_name,
           employee_last_name,
           employee_email,
-          t_role(role_name)
+          t_role(role_name, role_permissions)
         )
       `,
       )

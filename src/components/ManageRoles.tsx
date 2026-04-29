@@ -29,7 +29,7 @@ const allPermissions = [
 
 // Since permissions aren't in the DB, we define defaults per role name
 const defaultPermissions: Record<string, string[]> = {
-  Admin: [
+  "Administrator": [
     "All Permissions",
     "Manage Users",
     "Manage Roles",
