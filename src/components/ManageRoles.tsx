@@ -7,6 +7,7 @@ interface Role {
   role_name: string;
   role_description: string;
   user_count: number;
+  role_permissions: string[];
 }
 
 interface FormData {
@@ -64,16 +65,16 @@ export default function ManageRoles({
     permissions: [],
   });
 
-const getCurrentPermissions = (role: Role) =>
-  editedPermissions[role.role_id] ?? getRolePermissions(role.role_name);
+  const getCurrentPermissions = (role: Role) =>
+    editedPermissions[role.role_id] ?? role.role_permissions ?? [];
 
-const togglePermission = (roleId: number, permission: string, baseRoleName: string) => {
-  const current = editedPermissions[roleId] ?? getRolePermissions(baseRoleName);
-  const updated = current.includes(permission)
-    ? current.filter((p) => p !== permission)
-    : [...current, permission];
-  setEditedPermissions((prev) => ({ ...prev, [roleId]: updated }));
-};
+  const togglePermission = (role: Role, permission: string, baseRoleName: string) => {
+    const current = editedPermissions[role.role_id] ?? role.role_permissions ?? [];
+    const updated = current.includes(permission)
+      ? current.filter((p) => p !== permission)
+      : [...current, permission];
+    setEditedPermissions((prev) => ({ ...prev, [role.role_id]: updated }));
+  };
 
   useEffect(() => {
     fetchRoles();
@@ -87,7 +88,8 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
         role_id,
         role_name,
         role_description,
-        t_employee(employee_id)
+        t_employee(employee_id),
+        role_permissions
       `);
 
     if (dbError) {
@@ -102,6 +104,7 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
       role_name: row.role_name || "",
       role_description: row.role_description || "",
       user_count: (row.t_employee || []).length,
+      role_permissions: row.role_permissions || [],
     }));
 
     setRoles(mapped);
@@ -112,9 +115,15 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
     e.preventDefault();
     setSaving(true);
 
+    // We want to tick everything when given All Permissions
+    const finalPermissions = formData.permissions.includes("All Permissions")
+    ? [...allPermissions]
+    : formData.permissions;
+
     const { error: insertError } = await supabase.from("t_role").insert({
       role_name: formData.role_name,
       role_description: formData.role_description,
+      role_permissions: finalPermissions,
     });
 
     if (insertError) {
@@ -134,11 +143,17 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
     if (!editingRole) return;
     setSaving(true);
 
+    // We want to tick everything when given All Permissions
+    const finalPermissions = formData.permissions.includes("All Permissions")
+    ? [...allPermissions]
+    : formData.permissions;
+
     const { error: updateError } = await supabase
       .from("t_role")
       .update({
         role_name: formData.role_name,
         role_description: formData.role_description,
+        role_permissions: finalPermissions,
       })
       .eq("role_id", editingRole.role_id);
 
@@ -266,14 +281,14 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
                     </p>
                   </div>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex space- x-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
                       setFormData({
                         role_name: role.role_name,
                         role_description: role.role_description,
-                        permissions: getRolePermissions(role.role_name),
+                        permissions: role.role_permissions // getRolePermissions(role.role_name),
                       });
                       setEditingRole(role);
                     }}
@@ -310,8 +325,8 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
                     Permissions:
                   </p>
                   <div className="flex flex-wrap gap-2">
-                    {getRolePermissions(role.role_name).length > 0 ? (
-                      getRolePermissions(role.role_name).map(
+                    {(role.role_permissions ?? []).length > 0 ? (
+                        (role.role_permissions ?? []).map(
                         (permission, index) => (
                           <span
                             key={index}
@@ -360,7 +375,7 @@ const togglePermission = (roleId: number, permission: string, baseRoleName: stri
                   <input
                     type="checkbox"
                     checked={getCurrentPermissions(selectedRole).includes(permission)}
-                    onChange={() => togglePermission(selectedRole.role_id, permission, selectedRole.role_name)}
+                    onChange={() => togglePermission(selectedRole, permission, selectedRole.role_name)}
                     className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500"
                     />
                   <span
