@@ -39,6 +39,41 @@ interface DashboardStats {
   acceptedApplicants: number;
 }
 
+interface OpenPositionCategory {
+  category: string;
+  value: number;
+}
+
+interface AgeRangeBucket {
+  range: string;
+  value: number;
+}
+
+interface ApplicantsPositionsPoint {
+  name: string;
+  applicants: number;
+  positions: number;
+}
+
+interface CompanyRow {
+  company: string;
+  unfilled: number;
+  percentage: number;
+}
+
+interface AtRiskJobOrder {
+  jo_id: number;
+  company: string;
+  job_position: string;
+  project_officer: string;
+  days_open: number;
+  days_until_deadline: number | null;
+  applicants: number;
+  target_applicants: number;
+  completion_rate: number;
+  status: string;
+}
+
 export default function DashboardJobOrders({ darkMode = false }) {
   const [timePeriod, setTimePeriod] = useState("month");
   const [segmentBy, setSegmentBy] = useState("all");
@@ -51,12 +86,22 @@ export default function DashboardJobOrders({ darkMode = false }) {
     shortlistedApplicants: 0,
     acceptedApplicants: 0,
   });
-  const [atRiskJobOrders, setAtRiskJobOrders] = useState<any[]>([]);
+  const [atRiskJobOrders, setAtRiskJobOrders] = useState<AtRiskJobOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [openPositionsData, setOpenPositionsData] = useState<OpenPositionCategory[]>([]);
+  const [ageRangeData, setAgeRangeData] = useState<AgeRangeBucket[]>([]);
+  const [applicantAgeData, setApplicantAgeData] = useState<AgeRangeBucket[]>([]);
+  const [applicantsPositionsData, setApplicantsPositionsData] = useState<ApplicantsPositionsPoint[]>([]);
+  const [companyData, setCompanyData] = useState<CompanyRow[]>([]);
 
   useEffect(() => {
     fetchStats();
     fetchAtRiskJobOrders();
+    fetchOpenPositionsData();
+    fetchJobOrderAgeRangeData();
+    fetchApplicantAgeData();
+    fetchApplicantsPositionsData();
+    fetchCompanyData();
   }, []);
 
   const fetchStats = async () => {
@@ -102,97 +147,13 @@ export default function DashboardJobOrders({ darkMode = false }) {
   };
 
   const fetchAtRiskJobOrders = async () => {
-    const today = new Date();
-
-    const { data, error } = await supabase
-      .from("t_job_orders")
-      .select(
-        `
-        jo_id,
-        jo_reference_number,
-        is_active,
-        is_posted,
-        t_companies(company_name),
-        t_employee!t_job_orders_jo_created_by_fkey(employee_first_name, employee_last_name),
-        posted_date:t_date!t_job_orders_jo_posted_date_id_fkey(full_date),
-        deadline:t_date!t_job_orders_jo_deadline_id_fkey(full_date),
-        t_job_positions(
-          position_id,
-          job_title,
-          job_number_needed,
-          job_filled_count,
-          t_applications(application_id)
-        )
-      `,
-      )
-      .eq("is_active", true)
-      .eq("is_posted", true);
-
+    const { data, error } = await supabase.rpc("get_at_risk_job_orders");
     if (error) {
       console.error(error);
       setLoading(false);
       return;
     }
-
-    const mapped = (data || [])
-      .map((row: any) => {
-        const postedDate = row.posted_date?.full_date
-          ? new Date(row.posted_date.full_date)
-          : null;
-        const daysOpen = postedDate
-          ? Math.floor(
-              (today.getTime() - postedDate.getTime()) / (1000 * 60 * 60 * 24),
-            )
-          : 0;
-        const deadlineDate = row.deadline?.full_date
-          ? new Date(row.deadline.full_date)
-          : null;
-        const daysUntilDeadline = deadlineDate
-          ? Math.floor(
-              (deadlineDate.getTime() - today.getTime()) /
-                (1000 * 60 * 60 * 24),
-            )
-          : null;
-
-        const totalNeeded = (row.t_job_positions || []).reduce(
-          (sum: number, pos: any) => sum + (pos.job_number_needed || 0),
-          0,
-        );
-        const totalApplicants = (row.t_job_positions || []).reduce(
-          (sum: number, pos: any) => sum + (pos.t_applications || []).length,
-          0,
-        );
-        const completionRate =
-          totalNeeded > 0
-            ? Math.round((totalApplicants / totalNeeded) * 100)
-            : 0;
-        const firstPosition = row.t_job_positions?.[0];
-
-        let status = "Medium Risk";
-        if (daysOpen > 120 || completionRate < 20) status = "Critical";
-        else if (daysOpen > 90 || completionRate < 30) status = "High Risk";
-
-        return {
-          jo_id: row.jo_id,
-          jobOrderId: row.jo_reference_number,
-          company: row.t_companies?.company_name || "",
-          position: firstPosition?.job_title || "Multiple Positions",
-          projectOfficer: row.t_employee
-            ? `${row.t_employee.employee_last_name}, ${row.t_employee.employee_first_name}`
-            : "—",
-          daysOpen,
-          daysUntilDeadline,
-          applicants: totalApplicants,
-          targetApplicants: totalNeeded,
-          completionRate,
-          status,
-        };
-      })
-      .filter((row) => row.daysOpen > 60 || row.completionRate < 35)
-      .sort((a, b) => b.daysOpen - a.daysOpen)
-      .slice(0, 10);
-
-    setAtRiskJobOrders(mapped);
+    setAtRiskJobOrders(data || []);
     setLoading(false);
   };
 
@@ -437,52 +398,52 @@ export default function DashboardJobOrders({ darkMode = false }) {
     return segments[segmentBy] || [];
   };
 
-  const applicantsPositionsData = [
-    { name: "Jan", applicants: 35, positions: 25 },
-    { name: "Feb", applicants: 18, positions: 22 },
-    { name: "Mar", applicants: 28, positions: 18 },
-    { name: "Apr", applicants: 15, positions: 20 },
-    { name: "May", applicants: 25, positions: 15 },
-    { name: "Jun", applicants: 22, positions: 25 },
-    { name: "Jul", applicants: 18, positions: 12 },
-    { name: "Aug", applicants: 28, positions: 20 },
-  ];
+  // const applicantsPositionsData = [
+  //   { name: "Jan", applicants: 35, positions: 25 },
+  //   { name: "Feb", applicants: 18, positions: 22 },
+  //   { name: "Mar", applicants: 28, positions: 18 },
+  //   { name: "Apr", applicants: 15, positions: 20 },
+  //   { name: "May", applicants: 25, positions: 15 },
+  //   { name: "Jun", applicants: 22, positions: 25 },
+  //   { name: "Jul", applicants: 18, positions: 12 },
+  //   { name: "Aug", applicants: 28, positions: 20 },
+  // ];
 
-  const companyData = [
-    { company: "Saudi 1", unfilled: "n/a", percentage: "80%" },
-    { company: "Qatar 1", unfilled: "n/a", percentage: "78%" },
-    { company: "Iraq 1", unfilled: "n/a", percentage: "75%" },
-    { company: "Saudi 2", unfilled: "11k", percentage: "62%" },
-    { company: "Company 3", unfilled: "10k", percentage: "61%" },
-    { company: "Company 4", unfilled: "n/a", percentage: "58%" },
-    { company: "Abu Dhabi", unfilled: "7k", percentage: "55%" },
-    { company: "Construction Co.", unfilled: "5k", percentage: "40%" },
-    { company: "Nursing Co.", unfilled: "3k", percentage: "25%" },
-  ];
+  // const companyData = [
+  //   { company: "Saudi 1", unfilled: "n/a", percentage: "80%" },
+  //   { company: "Qatar 1", unfilled: "n/a", percentage: "78%" },
+  //   { company: "Iraq 1", unfilled: "n/a", percentage: "75%" },
+  //   { company: "Saudi 2", unfilled: "11k", percentage: "62%" },
+  //   { company: "Company 3", unfilled: "10k", percentage: "61%" },
+  //   { company: "Company 4", unfilled: "n/a", percentage: "58%" },
+  //   { company: "Abu Dhabi", unfilled: "7k", percentage: "55%" },
+  //   { company: "Construction Co.", unfilled: "5k", percentage: "40%" },
+  //   { company: "Nursing Co.", unfilled: "3k", percentage: "25%" },
+  // ];
 
-  const openPositionsData = [
-    { category: "Electronics", value: 45 },
-    { category: "Healthcare", value: 35 },
-    { category: "Prof Services", value: 30 },
-    { category: "Business", value: 50 },
-  ];
+  // const openPositionsData = [
+  //   { category: "Electronics", value: 45 },
+  //   { category: "Healthcare", value: 35 },
+  //   { category: "Prof Services", value: 30 },
+  //   { category: "Business", value: 50 },
+  // ];
 
-  const ageRangeData = [
-    { range: "0-60 days", value: 40 },
-    { range: "61-90 days", value: 35 },
-    { range: "91-120 days", value: 25 },
-    { range: "121+ days", value: 45 },
-  ];
+  // const ageRangeData = [
+  //   { range: "0-60 days", value: 40 },
+  //   { range: "61-90 days", value: 35 },
+  //   { range: "91-120 days", value: 25 },
+  //   { range: "121+ days", value: 45 },
+  // ];
 
-  const applicantAgeData = [
-    { range: "18-24", value: 30 },
-    { range: "25-29", value: 35 },
-    { range: "30-34", value: 40 },
-    { range: "35-39", value: 45 },
-    { range: "40-44", value: 38 },
-    { range: "45-49", value: 32 },
-    { range: "50+", value: 50 },
-  ];
+  // const applicantAgeData = [
+  //   { range: "18-24", value: 30 },
+  //   { range: "25-29", value: 35 },
+  //   { range: "30-34", value: 40 },
+  //   { range: "35-39", value: 45 },
+  //   { range: "40-44", value: 38 },
+  //   { range: "45-49", value: 32 },
+  //   { range: "50+", value: 50 },
+  // ];
 
   const projectOfficerPerformance = [
     {
@@ -716,6 +677,36 @@ export default function DashboardJobOrders({ darkMode = false }) {
     .slice(0, 10);
 
   const analyticsData = getAnalyticsData();
+
+  const fetchOpenPositionsData = async () => {
+    const { data, error } = await supabase.rpc("get_open_positions_by_category");
+    if (error || !data) return;
+    setOpenPositionsData(data);
+  };
+
+  const fetchJobOrderAgeRangeData = async () => {
+    const { data, error } = await supabase.rpc("get_job_order_age_range_data");
+    if (error || !data) return;
+    setAgeRangeData(data);
+  };
+
+  const fetchApplicantAgeData = async () => {
+    const { data, error } = await supabase.rpc("get_applicant_age_data");
+    if (error || !data) return;
+    setApplicantAgeData(data);
+  };
+
+  const fetchApplicantsPositionsData = async () => {
+    const { data, error } = await supabase.rpc("get_applicants_positions_data");
+    if (error || !data) return;
+    setApplicantsPositionsData(data);
+  };
+
+  const fetchCompanyData = async () => {
+    const { data, error } = await supabase.rpc("get_company_data");
+    if (error || !data) return;
+    setCompanyData(data);
+  };
 
   const mainLineChartData = {
     labels: analyticsData.map((d) => d.period),
@@ -1189,12 +1180,12 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
                     >
-                      {item.unfilled}
+                      {item.unfilled > 0 ? item.unfilled.toLocaleString() : "—"}
                     </td>
                     <td
                       className={`px-3 py-3 text-sm font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
                     >
-                      {item.percentage}
+                      {item.percentage}%
                     </td>
                   </tr>
                 ))}
@@ -1498,7 +1489,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
           <h3
             className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
           >
-            🚨 At-Risk Job Orders (Based on Time Open)
+            At-Risk Job Orders (Based on Time Open)
           </h3>
           <p
             className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"} mt-1`}
@@ -1594,7 +1585,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {job.position}
+                      {job.job_position}
                     </td>
                     <td
                       className={`px-3 py-3 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}
