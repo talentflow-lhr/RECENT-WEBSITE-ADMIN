@@ -577,6 +577,7 @@ export default function PreDeploymentChecklist({
                               handleCheckboxChange(applicant, key)
                             }
                             className="w-5 h-5 text-green-600 border-gray-300 rounded focus:ring-green-500 cursor-pointer accent-green-600"
+                            disabled={!hasPermission}
                           />
                         </td>
                       ))}
@@ -611,6 +612,7 @@ export default function PreDeploymentChecklist({
                               ? "bg-gray-700 border-gray-600 text-white"
                               : "bg-white border-gray-300 text-gray-900"
                           }`}
+                          disabled={!hasPermission}
                         />
                       </td>
                     </tr>

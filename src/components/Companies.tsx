@@ -457,6 +457,7 @@ export default function Companies({
             setShowAddModal(true);
           }}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          disabled={!hasPermission}
         >
           <Plus className="w-5 h-5" />
           <span>Add Company</span>
@@ -531,15 +532,17 @@ export default function Companies({
                     className="flex space-x-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
+                    <button // edit button
                       onClick={() => openEdit(company)}
                       className={`p-2 rounded-lg ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-600 hover:bg-blue-50"}`}
+                      disabled={!hasPermission}
                     >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button
+                    <button // delete button
                       onClick={() => handleDelete(company.company_id)}
                       className={`p-2 rounded-lg ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
+                      disabled={!hasPermission}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
