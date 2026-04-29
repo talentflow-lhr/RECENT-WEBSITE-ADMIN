@@ -24,9 +24,9 @@ interface DeploymentApplicant {
 }
 
 export default function PreDeploymentChecklist({
-  darkMode = false,
+  darkMode = false, hasPermission
 }: {
-  darkMode?: boolean;
+  darkMode?: boolean; hasPermission: boolean
 }) {
   const [deploymentApplicants, setDeploymentApplicants] = useState<
     DeploymentApplicant[]

@@ -41,9 +41,9 @@ interface FormData {
 }
 
 export default function Companies({
-  darkMode = false,
+  darkMode = false, hasPermission
 }: {
-  darkMode?: boolean;
+  darkMode?: boolean; hasPermission: boolean
 }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);

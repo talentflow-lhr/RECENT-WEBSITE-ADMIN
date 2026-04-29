@@ -39,9 +39,9 @@ interface CountrySummary {
 }
 
 export default function Deployment({
-  darkMode = false,
+  darkMode = false, hasPermission
 }: {
-  darkMode?: boolean;
+  darkMode?: boolean; hasPermission: boolean
 }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterProjectOfficer, setFilterProjectOfficer] = useState("All");

@@ -25,6 +25,7 @@ const allPermissions = [
   "Manage Applicants",
   "View Job Orders",
   "Update Status",
+  "Manage Company", // experimental, check ano labas
 ];
 
 // Since permissions aren't in the DB, we define defaults per role name

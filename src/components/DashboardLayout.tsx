@@ -80,20 +80,22 @@ export default function DashboardLayout({
     { id: "roles", label: "Manage Roles", icon: Shield, permission: "Manage Roles"}, // Manage Roles
     { id: "applicants", label: "Applicants", icon: UserCheck, permission: "" },
     { id: "joborders", label: "Job Orders", icon: Briefcase, permission: "View Job Orders" },
-    { id: "companies", label: "Companies", icon: Building2, permission: "Manage Companies"},
+    { id: "companies", label: "Companies", icon: Building2, permission: ""},
     {
       id: "predeployment",
       label: "Pre-Deployment Checklist",
       icon: CheckSquare,
-      permission: "Update Status"
+      permission: ""
     },
-    { id: "deployment", label: "Deployment", icon: Plane, permission: "Update Status"},
+    { id: "deployment", label: "Deployment", icon: Plane, permission: ""},
     { id: "general", label: "General", icon: Settings, permission: "" },
   ];
 
+  const currentAdminUserPermissions = adminUser.t_employee.t_role.role_permissions;
+
   const availMenuItems = menuItems.filter((item) =>
     item.permission === "" ||
-    adminUser.t_employee.t_role.role_permissions.includes(item.permission)
+    currentAdminUserPermissions.includes(item.permission)
   );
 
   const renderContent = () => {
@@ -111,15 +113,15 @@ export default function DashboardLayout({
       case "roles":
         return <ManageRoles darkMode={darkMode} />;
       case "applicants":
-        return <Applicants darkMode={darkMode} />;
+        return <Applicants darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Manage Applicants")}/>;
       case "joborders":
         return <JobOrders darkMode={darkMode} />;
       case "companies":
-        return <Companies darkMode={darkMode} />;
+        return <Companies darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Manage Company")} />;
       case "predeployment":
-        return <PreDeploymentChecklist darkMode={darkMode} />;
+        return <PreDeploymentChecklist darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Update Status")}/>;
       case "deployment":
-        return <Deployment darkMode={darkMode} />;
+        return <Deployment darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Update Status")}/>;
       default:
         return <Dashboard darkMode={darkMode} />;
     }
