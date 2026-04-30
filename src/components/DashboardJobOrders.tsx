@@ -37,6 +37,7 @@ interface DashboardStats {
   totalApplicants: number;
   shortlistedApplicants: number;
   acceptedApplicants: number;
+  currentApplicants: number;
 }
 
 interface OpenPositionCategory {
@@ -103,6 +104,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
   const [companyData, setCompanyData] = useState<CompanyRow[]>([]);
   const [applicantsHiredPerDayData, setApplicantsHiredPerDayData] = useState<ApplicantsHiredPerDay[]>([]);
 
+
   useEffect(() => {
     fetchStats();
     fetchAtRiskJobOrders();
@@ -112,6 +114,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
     fetchApplicantsPositionsData();
     fetchCompanyData();
     fetchApplicantsHiredPerDayData();
+
   }, []);
 
   const fetchStats = async () => {
@@ -122,6 +125,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
       { count: totalApplicants },
       { count: shortlistedApplicants },
       { count: acceptedApplicants },
+      { data: currentApplicants },
     ] = await Promise.all([
       supabase.from("t_job_orders").select("*", { count: "exact", head: true }),
       supabase
@@ -144,6 +148,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
         .from("t_applications")
         .select("*", { count: "exact", head: true })
         .eq("application_current_status", "Accepted"),
+      supabase.rpc("get_current_applicants_count"),
     ]);
 
     setStats({
@@ -153,6 +158,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
       totalApplicants: totalApplicants || 0,
       shortlistedApplicants: shortlistedApplicants || 0,
       acceptedApplicants: acceptedApplicants || 0,
+      currentApplicants: currentApplicants ?? 0,
     });
   };
 
@@ -166,6 +172,10 @@ export default function DashboardJobOrders({ darkMode = false }) {
     setAtRiskJobOrders(data || []);
     setLoading(false);
   };
+
+  const applicantToPositionRatio = stats.openPositions > 0
+    ? `${(stats.currentApplicants / stats.openPositions).toFixed(1)}:1`
+    : "N/A";
 
   // Top Stats from real data
   const statCards = [
@@ -203,7 +213,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
     { label: "Active Deployees", value: "67.42%", color: "border-gray-300" },
     {
       label: "Current Applicants to Pending Ratio",
-      value: "4:1",
+      value: applicantToPositionRatio,
       color: "border-gray-300",
     },
   ];
