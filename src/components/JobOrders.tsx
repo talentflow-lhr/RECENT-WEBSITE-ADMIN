@@ -76,9 +76,9 @@ interface Employee {
 }
 
 export default function JobOrders({
-  darkMode = false,
+  darkMode = false, hasPermission
 }: {
-  darkMode?: boolean;
+  darkMode?: boolean; hasPermission: boolean
 }) {
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -683,6 +683,7 @@ export default function JobOrders({
               <button
                 onClick={() => setShowAddPositionModal(true)}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                disabled={!hasPermission}
               >
                 <Plus className="w-5 h-5" />
                 <span>Add Position</span>
@@ -1986,6 +1987,7 @@ export default function JobOrders({
         <button
           onClick={() => setViewMode("form")}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          disabled={!hasPermission}
         >
           <Plus className="w-5 h-5" />
           <span>Add Job Order</span>
