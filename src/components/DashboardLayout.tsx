@@ -115,7 +115,7 @@ export default function DashboardLayout({
       case "applicants":
         return <Applicants darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Manage Applicants")}/>;
       case "joborders":
-        return <JobOrders darkMode={darkMode} />;
+        return <JobOrders darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Manage Orders")}/>;
       case "companies":
         return <Companies darkMode={darkMode} hasPermission={currentAdminUserPermissions.includes("Manage Company")} />;
       case "predeployment":
