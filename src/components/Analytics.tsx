@@ -47,6 +47,12 @@ interface StatusCounts {
   rejected: number;
 }
 
+interface MonthlyStats {
+  totalApplicationsDelta: number;      // e.g. 12 means +12%
+  acceptanceRateDelta: number;         // e.g. -2.3 means -2.3%
+  activeJobOrdersDelta: number;        // e.g. -3 means 3 fewer
+}
+
 export default function Analytics({
   darkMode = false,
 }: {
@@ -65,6 +71,11 @@ export default function Analytics({
     activeJobOrders: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
+    totalApplicationsDelta: 0,
+    acceptanceRateDelta: 0,
+    activeJobOrdersDelta: 0,
+  });
 
   useEffect(() => {
     fetchAll();
@@ -76,6 +87,7 @@ export default function Analytics({
       fetchMonthlyData(),
       fetchStatusCounts(),
       fetchOverviewStats(),
+      fetchMonthlyStats
     ]);
     setLoading(false);
   };
@@ -193,6 +205,58 @@ export default function Analytics({
     });
   };
 
+  const fetchMonthlyStats = async () => {
+    const now = new Date();
+    const thisYear = now.getFullYear();
+    const thisMonth = now.getMonth() + 1;
+    const lastMonth = thisMonth === 1 ? 12 : thisMonth - 1;
+    const lastMonthYear = thisMonth === 1 ? thisYear - 1 : thisYear;
+
+    const [{ data: thisMonthDates }, { data: lastMonthDates }] = await Promise.all([
+      supabase.from("t_date").select("date_id").eq("month_num", thisMonth).eq("year", thisYear),
+      supabase.from("t_date").select("date_id").eq("month_num", lastMonth).eq("year", lastMonthYear),
+    ]);
+
+    const thisIds = (thisMonthDates || []).map((r: any) => r.date_id);
+    const lastIds = (lastMonthDates || []).map((r: any) => r.date_id);
+
+    const [
+      { count: thisMonthApps },
+      { count: lastMonthApps },
+      { count: thisMonthAccepted },
+      { count: lastMonthAccepted },
+      { count: thisMonthJobs },
+      { count: lastMonthJobs },
+    ] = await Promise.all([
+      supabase.from("t_applications").select("*", { count: "exact", head: true }).in("applied_date_id", thisIds),
+      supabase.from("t_applications").select("*", { count: "exact", head: true }).in("applied_date_id", lastIds),
+      supabase.from("t_applications").select("*", { count: "exact", head: true }).eq("application_current_status", "Accepted").in("applied_date_id", thisIds),
+      supabase.from("t_applications").select("*", { count: "exact", head: true }).eq("application_current_status", "Accepted").in("applied_date_id", lastIds),
+      supabase.from("t_job_orders").select("*", { count: "exact", head: true }).eq("is_active", true).eq("is_posted", true).in("jo_posted_date_id", thisIds),
+      supabase.from("t_job_orders").select("*", { count: "exact", head: true }).eq("is_active", true).eq("is_posted", true).in("jo_posted_date_id", lastIds),
+    ]);
+
+    const cur = thisMonthApps || 0;
+    const prev = lastMonthApps || 0;
+    const totalApplicationsDelta = prev > 0 ? parseFloat((((cur - prev) / prev) * 100).toFixed(1)) : 0;
+
+    const curRate = cur > 0 ? ((thisMonthAccepted || 0) / cur) * 100 : 0;
+    const prevRate = prev > 0 ? ((lastMonthAccepted || 0) / prev) * 100 : 0;
+    const acceptanceRateDelta = parseFloat((curRate - prevRate).toFixed(1));
+
+    const activeJobOrdersDelta = (thisMonthJobs || 0) - (lastMonthJobs || 0);
+
+    setMonthlyStats({ totalApplicationsDelta, acceptanceRateDelta, activeJobOrdersDelta });
+  };
+
+  const DeltaBadge = ({ value, suffix = "" }: { value: number; suffix?: string }) => {
+    const isPositive = value > 0;
+    const isZero = value === 0;
+    const color = isZero ? "text-gray-400" : isPositive ? "text-green-600" : "text-red-500";
+    const arrow = isZero ? "→" : isPositive ? "↑" : "↓";
+    const display = isZero ? "No change" : `${arrow} ${Math.abs(value)}${suffix} from last month`;
+    return <p className={`${color} text-sm mt-2`}>{display}</p>;
+  };
   const COLORS = ["#3B82F6", "#EAB308", "#22C55E", "#EF4444"];
 
   const barChartData = {
@@ -337,7 +401,7 @@ export default function Analytics({
           >
             {overviewStats.totalApplications.toLocaleString()}
           </p>
-          <p className="text-green-600 text-sm mt-2"> ↑ 12% from last month </p> {/*this is hardcoded, need mo yata i call yung up down haha idk how */}
+          <DeltaBadge value={monthlyStats.totalApplicationsDelta} suffix="%" /> {/*this is hardcoded, need mo yata i call yung up down haha idk how */}
         </div>
         <div
           className={`rounded-xl shadow-md p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}
@@ -352,7 +416,7 @@ export default function Analytics({
           >
             {overviewStats.acceptanceRate.toFixed(1)}%
           </p>
-          <p className="text-green-600 text-sm mt-2">↑ 2.3% from last month</p> {/*also hardcoded */}
+          <DeltaBadge value={monthlyStats.acceptanceRateDelta} suffix="%" /> {/*also hardcoded */}
         </div>
         <div
           className={`rounded-xl shadow-md p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}
@@ -367,7 +431,7 @@ export default function Analytics({
           >
             {overviewStats.activeJobOrders.toLocaleString()}
           </p>
-          <p className="text-red-600 text-sm mt-2">↓ 3 from last month</p> {/*also hardcoded */}
+          <DeltaBadge value={monthlyStats.activeJobOrdersDelta} /> {/*also hardcoded */}
         </div>
       </div>
 
