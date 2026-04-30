@@ -74,6 +74,14 @@ interface AtRiskJobOrder {
   status: string;
 }
 
+interface ApplicantsHiredPerDay {
+  date: string;
+  applicants: number;
+  hired: number;
+  applicantsPerDay: number;
+  hiredPerDay: number;
+}
+
 export default function DashboardJobOrders({ darkMode = false }) {
   const [timePeriod, setTimePeriod] = useState("month");
   const [segmentBy, setSegmentBy] = useState("all");
@@ -93,6 +101,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
   const [applicantAgeData, setApplicantAgeData] = useState<AgeRangeBucket[]>([]);
   const [applicantsPositionsData, setApplicantsPositionsData] = useState<ApplicantsPositionsPoint[]>([]);
   const [companyData, setCompanyData] = useState<CompanyRow[]>([]);
+  const [applicantsHiredPerDayData, setApplicantsHiredPerDayData] = useState<ApplicantsHiredPerDay[]>([]);
 
   useEffect(() => {
     fetchStats();
@@ -102,6 +111,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
     fetchApplicantAgeData();
     fetchApplicantsPositionsData();
     fetchCompanyData();
+    fetchApplicantsHiredPerDayData();
   }, []);
 
   const fetchStats = async () => {
@@ -568,106 +578,106 @@ export default function DashboardJobOrders({ darkMode = false }) {
     },
   ];
 
-  const applicantsHiredPerDayData = [
-    {
-      date: "Mar 1",
-      applicants: 12,
-      hired: 8,
-      applicantsPerDay: 12,
-      hiredPerDay: 8,
-    },
-    {
-      date: "Mar 2",
-      applicants: 15,
-      hired: 10,
-      applicantsPerDay: 13.5,
-      hiredPerDay: 9,
-    },
-    {
-      date: "Mar 3",
-      applicants: 8,
-      hired: 5,
-      applicantsPerDay: 11.7,
-      hiredPerDay: 7.7,
-    },
-    {
-      date: "Mar 4",
-      applicants: 18,
-      hired: 12,
-      applicantsPerDay: 13.3,
-      hiredPerDay: 8.8,
-    },
-    {
-      date: "Mar 5",
-      applicants: 22,
-      hired: 15,
-      applicantsPerDay: 15,
-      hiredPerDay: 10,
-    },
-    {
-      date: "Mar 6",
-      applicants: 10,
-      hired: 7,
-      applicantsPerDay: 14.2,
-      hiredPerDay: 9.5,
-    },
-    {
-      date: "Mar 7",
-      applicants: 14,
-      hired: 9,
-      applicantsPerDay: 14.1,
-      hiredPerDay: 9.4,
-    },
-    {
-      date: "Mar 8",
-      applicants: 20,
-      hired: 14,
-      applicantsPerDay: 14.9,
-      hiredPerDay: 10,
-    },
-    {
-      date: "Mar 9",
-      applicants: 16,
-      hired: 11,
-      applicantsPerDay: 15,
-      hiredPerDay: 10.1,
-    },
-    {
-      date: "Mar 10",
-      applicants: 12,
-      hired: 8,
-      applicantsPerDay: 14.7,
-      hiredPerDay: 9.9,
-    },
-    {
-      date: "Mar 11",
-      applicants: 18,
-      hired: 13,
-      applicantsPerDay: 15.1,
-      hiredPerDay: 10.2,
-    },
-    {
-      date: "Mar 12",
-      applicants: 24,
-      hired: 16,
-      applicantsPerDay: 15.8,
-      hiredPerDay: 10.7,
-    },
-    {
-      date: "Mar 13",
-      applicants: 11,
-      hired: 7,
-      applicantsPerDay: 15.4,
-      hiredPerDay: 10.3,
-    },
-    {
-      date: "Mar 14",
-      applicants: 19,
-      hired: 13,
-      applicantsPerDay: 15.6,
-      hiredPerDay: 10.5,
-    },
-  ];
+  // const applicantsHiredPerDayData = [
+  //   {
+  //     date: "Mar 1",
+  //     applicants: 12,
+  //     hired: 8,
+  //     applicantsPerDay: 12,
+  //     hiredPerDay: 8,
+  //   },
+  //   {
+  //     date: "Mar 2",
+  //     applicants: 15,
+  //     hired: 10,
+  //     applicantsPerDay: 13.5,
+  //     hiredPerDay: 9,
+  //   },
+  //   {
+  //     date: "Mar 3",
+  //     applicants: 8,
+  //     hired: 5,
+  //     applicantsPerDay: 11.7,
+  //     hiredPerDay: 7.7,
+  //   },
+  //   {
+  //     date: "Mar 4",
+  //     applicants: 18,
+  //     hired: 12,
+  //     applicantsPerDay: 13.3,
+  //     hiredPerDay: 8.8,
+  //   },
+  //   {
+  //     date: "Mar 5",
+  //     applicants: 22,
+  //     hired: 15,
+  //     applicantsPerDay: 15,
+  //     hiredPerDay: 10,
+  //   },
+  //   {
+  //     date: "Mar 6",
+  //     applicants: 10,
+  //     hired: 7,
+  //     applicantsPerDay: 14.2,
+  //     hiredPerDay: 9.5,
+  //   },
+  //   {
+  //     date: "Mar 7",
+  //     applicants: 14,
+  //     hired: 9,
+  //     applicantsPerDay: 14.1,
+  //     hiredPerDay: 9.4,
+  //   },
+  //   {
+  //     date: "Mar 8",
+  //     applicants: 20,
+  //     hired: 14,
+  //     applicantsPerDay: 14.9,
+  //     hiredPerDay: 10,
+  //   },
+  //   {
+  //     date: "Mar 9",
+  //     applicants: 16,
+  //     hired: 11,
+  //     applicantsPerDay: 15,
+  //     hiredPerDay: 10.1,
+  //   },
+  //   {
+  //     date: "Mar 10",
+  //     applicants: 12,
+  //     hired: 8,
+  //     applicantsPerDay: 14.7,
+  //     hiredPerDay: 9.9,
+  //   },
+  //   {
+  //     date: "Mar 11",
+  //     applicants: 18,
+  //     hired: 13,
+  //     applicantsPerDay: 15.1,
+  //     hiredPerDay: 10.2,
+  //   },
+  //   {
+  //     date: "Mar 12",
+  //     applicants: 24,
+  //     hired: 16,
+  //     applicantsPerDay: 15.8,
+  //     hiredPerDay: 10.7,
+  //   },
+  //   {
+  //     date: "Mar 13",
+  //     applicants: 11,
+  //     hired: 7,
+  //     applicantsPerDay: 15.4,
+  //     hiredPerDay: 10.3,
+  //   },
+  //   {
+  //     date: "Mar 14",
+  //     applicants: 19,
+  //     hired: 13,
+  //     applicantsPerDay: 15.6,
+  //     hiredPerDay: 10.5,
+  //   },
+  // ];
 
   const topPerformers = [...projectOfficerPerformance]
     .sort((a, b) => b.completionRate - a.completionRate)
@@ -707,6 +717,24 @@ export default function DashboardJobOrders({ darkMode = false }) {
     if (error || !data) return;
     setCompanyData(data);
   };
+
+  const fetchApplicantsHiredPerDayData = async () => {
+    const { data, error } = await supabase.rpc("get_applicants_hired_per_day", { days_back: 14 });
+    if (error) {
+      console.error(error);
+      return;
+    }
+    setApplicantsHiredPerDayData(data || []);
+  };
+
+
+  const totalApplicants = applicantsHiredPerDayData.reduce((sum, d) => sum + d.applicants, 0);
+  const totalHired = applicantsHiredPerDayData.reduce((sum, d) => sum + d.hired, 0);
+  const avgApplicantsPerDay = applicantsHiredPerDayData.at(-1)?.applicantsPerDay ?? 0;
+  const avgHiredPerDay = applicantsHiredPerDayData.at(-1)?.hiredPerDay ?? 0;
+  const conversionRate = totalApplicants > 0
+    ? Math.round((totalHired / totalApplicants) * 100 * 10) / 10
+    : 0;
 
   const mainLineChartData = {
     labels: analyticsData.map((d) => d.period),
@@ -1575,7 +1603,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-xs font-mono ${darkMode ? "text-blue-400" : "text-blue-600"}`}
                     >
-                      {job.jobOrderId}
+                      {job.jo_id}
                     </td>
                     <td
                       className={`px-3 py-3 text-xs ${darkMode ? "text-gray-200" : "text-gray-900"}`}
@@ -1590,12 +1618,12 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-xs ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {job.projectOfficer}
+                      {job.project_officer}
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm font-bold ${job.daysOpen > 130 ? (darkMode ? "text-red-400" : "text-red-600") : job.daysOpen > 115 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
-                      {job.daysOpen}
+                      {job.days_open}
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
@@ -1605,12 +1633,12 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
                     >
-                      {job.targetApplicants}
+                      {job.target_applicants}
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm font-bold ${job.completionRate < 20 ? (darkMode ? "text-red-400" : "text-red-600") : job.completionRate < 30 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
-                      {job.completionRate}%
+                      {job.completion_rate}%
                     </td>
                   </tr>
                 ))
@@ -1628,7 +1656,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
           <h3
             className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
           >
-            📊 Applicants/Day and Hired/Day Ratio
+            Applicants/Day and Hired/Day Ratio
           </h3>
           <p
             className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"} mt-1`}
@@ -1671,25 +1699,25 @@ export default function DashboardJobOrders({ darkMode = false }) {
           {[
             {
               label: "Avg Applicants/Day",
-              value: "15.6",
+              value: avgApplicantsPerDay.toFixed(1),
               color: darkMode ? "bg-blue-900/30" : "bg-blue-50",
               textColor: darkMode ? "text-blue-400" : "text-blue-600",
             },
             {
               label: "Avg Hired/Day",
-              value: "10.5",
+              value: avgHiredPerDay.toFixed(1),
               color: darkMode ? "bg-green-900/30" : "bg-green-50",
               textColor: darkMode ? "text-green-400" : "text-green-600",
             },
             {
               label: "Conversion Rate",
-              value: "67.3%",
+              value: `${conversionRate}%`,
               color: darkMode ? "bg-purple-900/30" : "bg-purple-50",
               textColor: darkMode ? "text-purple-400" : "text-purple-600",
             },
             {
-              label: "Total Period (14 days)",
-              value: "218 / 147",
+              label: `Total Period (${applicantsHiredPerDayData.length} days)`,
+              value: `${totalApplicants} / ${totalHired}`,
               color: darkMode ? "bg-yellow-900/30" : "bg-yellow-50",
               textColor: darkMode ? "text-yellow-400" : "text-yellow-600",
             },
