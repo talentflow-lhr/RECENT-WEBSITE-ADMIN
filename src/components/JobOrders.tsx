@@ -76,9 +76,11 @@ interface Employee {
 }
 
 export default function JobOrders({
-  darkMode = false, hasPermission
+  darkMode = false,
+  hasPermission,
 }: {
-  darkMode?: boolean; hasPermission: boolean
+  darkMode?: boolean;
+  hasPermission: boolean;
 }) {
   const [jobOrders, setJobOrders] = useState<JobOrder[]>([]);
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -111,7 +113,7 @@ export default function JobOrders({
     interviewDate: "",
     declinedReason: "",
     rejectedReason: "",
-    salaryRange:"",
+    salaryRange: "",
   });
 
   const [jobOrderForm, setJobOrderForm] = useState({
@@ -265,7 +267,7 @@ export default function JobOrders({
       .eq("employee_is_active", true);
     if (data) setEmployees(data);
   };
-// added this for the label
+  // added this for the label
   const getStatusLabel = (is_active: boolean, is_posted: boolean) => {
     if (!is_posted) return "On Hold";
     if (is_active) return "Active";
@@ -273,16 +275,16 @@ export default function JobOrders({
   };
 
   const getStatusColor = (is_active: boolean, is_posted: boolean) => {
-    if (!is_posted) return darkMode
-      ? "bg-yellow-900 text-yellow-200"
-      : "bg-yellow-100 text-yellow-800";
-    if (is_active) return darkMode
-      ? "bg-green-900 text-green-200"
-      : "bg-green-100 text-green-800";
-  return darkMode
-    ? "bg-red-900 text-red-200"
-    : "bg-red-100 text-red-800";
-};
+    if (!is_posted)
+      return darkMode
+        ? "bg-yellow-900 text-yellow-200"
+        : "bg-yellow-100 text-yellow-800";
+    if (is_active)
+      return darkMode
+        ? "bg-green-900 text-green-200"
+        : "bg-green-100 text-green-800";
+    return darkMode ? "bg-red-900 text-red-200" : "bg-red-100 text-red-800";
+  };
 
   const getApplicantStatusColor = (status: string) => {
     switch (status) {
@@ -348,7 +350,7 @@ export default function JobOrders({
       })),
     );
   };
-// TODO: wire up to a status toggle button in the positions view header
+  // TODO: wire up to a status toggle button in the positions view header
   const handleToggleJobOrderStatus = async (
     jo_id: number,
     is_active: boolean,
@@ -599,9 +601,13 @@ export default function JobOrders({
     );
 
     return (
-      <div className={`h-full flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
+      <div
+        className={`h-full flex flex-col ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}
+      >
         {/* Header */}
-        <div className={`border-b px-6 py-5 shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div
+          className={`border-b px-6 py-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+        >
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center space-x-4 mb-4">
               <button
@@ -663,23 +669,47 @@ export default function JobOrders({
         </div>
 
         {/* Stats */}
-        <div className={`p-4 ${darkMode ? 'bg-gray-900' : 'bg-gray-100'}`}>
+        <div className={`p-4 ${darkMode ? "bg-gray-900" : "bg-gray-100"}`}>
           <div className="max-w-7xl mx-auto grid grid-cols-3 gap-4">
-            <div className={`rounded-lg p-4 border-l-4 border-green-600 ${darkMode ? 'bg-green-900' : 'bg-green-50'}`}>
-              <p className={`text-sm mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Total Positions</p>
-              <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div
+              className={`rounded-lg p-4 border-l-4 border-green-600 ${darkMode ? "bg-green-900" : "bg-green-50"}`}
+            >
+              <p
+                className={`text-sm mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+              >
+                Total Positions
+              </p>
+              <p
+                className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
                 {selectedJobOrder.positions.length}
               </p>
             </div>
-            <div className={`rounded-lg p-4 border-l-4 border-blue-600 ${darkMode ? 'bg-blue-900' : 'bg-blue-50'}`}>
-              <p className={`text-sm mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Slots Needed</p>
-              <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div
+              className={`rounded-lg p-4 border-l-4 border-blue-600 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}
+            >
+              <p
+                className={`text-sm mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+              >
+                Slots Needed
+              </p>
+              <p
+                className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
                 {totalOpenPositions}
               </p>
             </div>
-            <div className={`rounded-lg p-4 border-l-4 border-purple-600 ${darkMode ? 'bg-purple-900' : 'bg-purple-50'}`}>
-              <p className={`text-sm mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}>Total Applicants</p>
-              <p className={`text-3xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div
+              className={`rounded-lg p-4 border-l-4 border-purple-600 ${darkMode ? "bg-purple-900" : "bg-purple-50"}`}
+            >
+              <p
+                className={`text-sm mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+              >
+                Total Applicants
+              </p>
+              <p
+                className={`text-3xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
                 {totalJobApplicants}
               </p>
             </div>
@@ -690,7 +720,11 @@ export default function JobOrders({
         <div className="flex-1 overflow-auto p-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-             <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>Positions</h2>
+              <h2
+                className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+              >
+                Positions
+              </h2>
               <button
                 onClick={() => setShowAddPositionModal(true)}
                 className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
@@ -710,7 +744,7 @@ export default function JobOrders({
                       position,
                     })
                   }
-                 className={`rounded-2xl border-2 border-green-500 shadow-lg hover:shadow-xl hover:border-green-600 transition-all cursor-pointer p-5 ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+                  className={`rounded-2xl border-2 border-green-500 shadow-lg hover:shadow-xl hover:border-green-600 transition-all cursor-pointer p-5 ${darkMode ? "bg-gray-800" : "bg-white"}`}
                 >
                   <div className="flex items-start justify-between mb-4">
                     <div className="w-14 h-14 bg-blue-100 rounded-xl flex items-center justify-center">
@@ -720,36 +754,64 @@ export default function JobOrders({
                       {position.job_number_needed} Needed
                     </span>
                   </div>
-                  <h3 className={`text-xl font-bold mb-2 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                  <h3
+                    className={`text-xl font-bold mb-2 ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     {position.job_title}
                   </h3>
                   {position.job_description && (
-                    <p className={`text-sm mb-4 line-clamp-2 ${darkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                    <p
+                      className={`text-sm mb-4 line-clamp-2 ${darkMode ? "text-gray-400" : "text-gray-600"}`}
+                    >
                       {position.job_description}
                     </p>
                   )}
                   <div className="space-y-1 mb-4">
                     {position.job_contract_length && (
                       <p className="text-sm">
-                        <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Contract:</span>{" "}
-                        <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                        <span
+                          className={
+                            darkMode ? "text-gray-400" : "text-gray-500"
+                          }
+                        >
+                          Contract:
+                        </span>{" "}
+                        <span
+                          className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                        >
                           {position.job_contract_length}
                         </span>
                       </p>
                     )}
                     {position.job_salary_range && (
                       <p className="text-sm">
-                        <span className={darkMode ? 'text-gray-400' : 'text-gray-500'}>Salary:</span>{" "}
-                        <span className={`font-medium ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                        <span
+                          className={
+                            darkMode ? "text-gray-400" : "text-gray-500"
+                          }
+                        >
+                          Salary:
+                        </span>{" "}
+                        <span
+                          className={`font-medium ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                        >
                           {position.job_salary_range}
                         </span>
                       </p>
                     )}
                   </div>
-                  <div className={`flex items-center justify-between pt-3 border-t ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+                  <div
+                    className={`flex items-center justify-between pt-3 border-t ${darkMode ? "border-gray-700" : "border-gray-200"}`}
+                  >
                     <div>
-                      <p className={`text-xs ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Applicants</p>
-                      <p className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                      <p
+                        className={`text-xs ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        Applicants
+                      </p>
+                      <p
+                        className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                      >
                         {position.applicants.length}
                       </p>
                     </div>
@@ -774,11 +836,17 @@ export default function JobOrders({
         {/* Applicants Modal */}
         {selectedPosition && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className={`rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className={`flex items-center justify-between p-6 border-b ${darkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+            <div
+              className={`rounded-xl shadow-xl w-full h-full max-w-7xl max-h-[90vh] flex flex-col ${darkMode ? "bg-gray-800" : "bg-white"}`}
+            >
+              <div
+                className={`flex items-center justify-between p-6 border-b ${darkMode ? "border-gray-700" : "border-gray-200"}`}
+              >
                 <div>
                   <div className="flex items-center space-x-3">
-                  <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <h2
+                      className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                    >
                       {selectedPosition.position.job_title}
                     </h2>
                     <span className="px-3 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
@@ -818,8 +886,10 @@ export default function JobOrders({
                 </button>
               </div>
 
-               {/* Search and filter */}
-              <div className={`px-6 py-4 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              {/* Search and filter */}
+              <div
+                className={`px-6 py-4 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+              >
                 <div className="flex flex-col sm:flex-row gap-3">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -828,13 +898,13 @@ export default function JobOrders({
                       placeholder="Search applicants by name..."
                       value={applicantSearchTerm}
                       onChange={(e) => setApplicantSearchTerm(e.target.value)}
-                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white placeholder-gray-400' : 'border-gray-300'}`}
+                      className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white placeholder-gray-400" : "border-gray-300"}`}
                     />
                   </div>
                   <select
                     value={applicantFilterStatus}
                     onChange={(e) => setApplicantFilterStatus(e.target.value)}
-                    className={`px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
+                    className={`px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                   >
                     <option value="All">All Status</option>
                     {[
@@ -854,7 +924,7 @@ export default function JobOrders({
                   <select
                     value={applicantScoreSort}
                     onChange={(e) => setApplicantScoreSort(e.target.value)}
-                    className={`px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
+                    className={`px-3 py-2 border rounded-lg focus:outline-none focus:border-green-600 text-sm ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
                   >
                     <option value="none">Resume Score (Default)</option>
                     <option value="high-to-low">
@@ -868,24 +938,38 @@ export default function JobOrders({
               </div>
 
               {/* Position details */}
-            <div className={`px-6 py-4 border-b ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div
+                className={`px-6 py-4 border-b ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+              >
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {selectedPosition.position.job_description && (
-            <div className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
-              <h3 className={`text-sm font-semibold mb-2 ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>
-                Position Description
-              </h3>
-              <p className={`text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
-                {selectedPosition.position.job_description}
-              </p>
-            </div>
-          )}
+                    <div
+                      className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? "bg-blue-900/30" : "bg-blue-50"}`}
+                    >
+                      <h3
+                        className={`text-sm font-semibold mb-2 ${darkMode ? "text-blue-300" : "text-blue-900"}`}
+                      >
+                        Position Description
+                      </h3>
+                      <p
+                        className={`text-sm leading-relaxed ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                      >
+                        {selectedPosition.position.job_description}
+                      </p>
+                    </div>
+                  )}
                   {selectedPosition.position.job_requirements?.length > 0 && (
-                    <div className={`border-l-4 border-purple-600 rounded-lg p-4 ${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
-                      <h3 className={`text-sm font-semibold mb-2 ${darkMode ? 'text-purple-300' : 'text-purple-900'}`}>
+                    <div
+                      className={`border-l-4 border-purple-600 rounded-lg p-4 ${darkMode ? "bg-purple-900/30" : "bg-purple-50"}`}
+                    >
+                      <h3
+                        className={`text-sm font-semibold mb-2 ${darkMode ? "text-purple-300" : "text-purple-900"}`}
+                      >
                         Position Requirements
                       </h3>
-                      <p className={`text-sm leading-relaxed ${darkMode ? 'text-gray-300' : 'text-gray-700'}`}>
+                      <p
+                        className={`text-sm leading-relaxed ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+                      >
                         {Array.isArray(
                           selectedPosition.position.job_requirements,
                         )
@@ -901,9 +985,13 @@ export default function JobOrders({
 
               {/* Applicants table */}
               <div className="flex-1 overflow-auto p-6">
-                <div className={`rounded-lg border overflow-hidden ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+                <div
+                  className={`rounded-lg border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+                >
                   <table className="w-full">
-                    <thead className={`sticky top-0 ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
+                    <thead
+                      className={`sticky top-0 ${darkMode ? "bg-green-900/30" : "bg-green-50"}`}
+                    >
                       <tr>
                         {[
                           "Name",
@@ -922,7 +1010,9 @@ export default function JobOrders({
                         ))}
                       </tr>
                     </thead>
-                    <tbody className={`divide-y ${darkMode ? 'bg-gray-700 divide-gray-600' : 'bg-white divide-gray-200'}`}>
+                    <tbody
+                      className={`divide-y ${darkMode ? "bg-gray-700 divide-gray-600" : "bg-white divide-gray-200"}`}
+                    >
                       {(() => {
                         let filtered =
                           selectedPosition.position.applicants.filter((a) => {
@@ -961,7 +1051,7 @@ export default function JobOrders({
                         return filtered.map((applicant) => (
                           <tr
                             key={applicant.application_id}
-                            className={`cursor-pointer ${darkMode ? 'hover:bg-gray-600' : 'hover:bg-gray-50'}`}
+                            className={`cursor-pointer ${darkMode ? "hover:bg-gray-600" : "hover:bg-gray-50"}`}
                             onClick={() => {
                               setSelectedApplicant(applicant);
                               setApplicantEditForm({
@@ -970,7 +1060,9 @@ export default function JobOrders({
                                 interviewDate: applicant.interview_date || "",
                                 declinedReason: applicant.declined_reason || "",
                                 rejectedReason: applicant.rejected_reason || "",
-                                salaryRange: selectedPosition?.position.job_salary_range || "",
+                                salaryRange:
+                                  selectedPosition?.position.job_salary_range ||
+                                  "",
                               });
                             }}
                           >
@@ -982,7 +1074,9 @@ export default function JobOrders({
                                     {applicant.app_last_name[0]}
                                   </span>
                                 </div>
-                                <div className={`text-sm font-medium ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                                <div
+                                  className={`text-sm font-medium ${darkMode ? "text-white" : "text-gray-900"}`}
+                                >
                                   {applicant.app_first_name}{" "}
                                   {applicant.app_last_name}
                                 </div>
@@ -1028,12 +1122,16 @@ export default function JobOrders({
                                 ))}
                               </select>
                             </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-300' : 'text-gray-900'}`}>
+                            <td
+                              className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                            >
                               {applicant.interviewer || (
                                 <span className="text-gray-400">—</span>
                               )}
                             </td>
-                            <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            <td
+                              className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                            >
                               {applicant.applied_date}
                             </td>
                           </tr>
@@ -1043,7 +1141,9 @@ export default function JobOrders({
                   </table>
                 </div>
               </div>
-              <div className={`flex justify-end items-center space-x-3 px-6 py-4 border-t ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div
+                className={`flex justify-end items-center space-x-3 px-6 py-4 border-t ${darkMode ? "bg-gray-800 border-gray-700" : "bg-gray-50 border-gray-200"}`}
+              >
                 <button
                   onClick={() => setSelectedPosition(null)}
                   className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors"
@@ -1072,11 +1172,13 @@ export default function JobOrders({
             }}
           >
             <div
-              className={`rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}
+              className={`rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+              <div
+                className={`sticky top-0 border-b px-6 py-4 flex items-center justify-between ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+              >
                 <div className="flex items-center space-x-4">
                   <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
                     <span className="text-green-600 font-bold text-xl">
@@ -1085,7 +1187,9 @@ export default function JobOrders({
                     </span>
                   </div>
                   <div>
-                    <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                    <h2
+                      className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                    >
                       {selectedApplicant.app_first_name}{" "}
                       {selectedApplicant.app_last_name}
                     </h2>
@@ -1109,8 +1213,12 @@ export default function JobOrders({
               {/* Content */}
               <div className="p-6 space-y-5">
                 <div className="grid grid-cols-2 gap-4">
-                    <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Resume Score</p>
+                  <div>
+                    <p
+                      className={`text-sm mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Resume Score
+                    </p>
                     <p
                       className={`text-base ${getScoreColor(selectedApplicant.resume_score)}`}
                     >
@@ -1118,7 +1226,11 @@ export default function JobOrders({
                     </p>
                   </div>
                   <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Job Fit Score</p>
+                    <p
+                      className={`text-sm mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Job Fit Score
+                    </p>
                     <p
                       className={`text-base ${getScoreColor(selectedApplicant.job_fit_score)}`}
                     >
@@ -1126,8 +1238,14 @@ export default function JobOrders({
                     </p>
                   </div>
                   <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Applied Date</p>
-                    <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <p
+                      className={`text-sm mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                    >
+                      Applied Date
+                    </p>
+                    <p
+                      className={`text-base ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    >
                       {selectedApplicant.applied_date || "—"}
                     </p>
                   </div>
@@ -1135,7 +1253,11 @@ export default function JobOrders({
 
                 {/* Interviewer */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Interviewer</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Interviewer
+                  </p>
                   {isEditingApplicant ? (
                     <input
                       type="text"
@@ -1150,15 +1272,21 @@ export default function JobOrders({
                       placeholder="Enter interviewer name"
                     />
                   ) : (
-                    <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <p
+                      className={`text-base ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    >
                       {selectedApplicant.interviewer || "—"}
                     </p>
                   )}
                 </div>
 
-                 {/* Interview Date */}
+                {/* Interview Date */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Interview Date</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Interview Date
+                  </p>
                   {isEditingApplicant ? (
                     <input
                       type="date"
@@ -1169,10 +1297,12 @@ export default function JobOrders({
                           interviewDate: e.target.value,
                         })
                       }
-                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : ""}`}
                     />
                   ) : (
-                    <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                    <p
+                      className={`text-base ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    >
                       {selectedApplicant.interview_date || "—"}
                     </p>
                   )}
@@ -1180,27 +1310,40 @@ export default function JobOrders({
 
                 {/* Salary Range */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Salary Range</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Salary Range
+                  </p>
                   {isEditingApplicant ? (
-              <input
-                type="text"
-                value={applicantEditForm.salaryRange}
-                onChange={(e) =>
-                  setApplicantEditForm({ ...applicantEditForm, salaryRange: e.target.value })
-                }
-                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
-                placeholder="e.g. $3,000-$5,000/month"
-                />
-            ) : (
-              <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                {selectedPosition?.position.job_salary_range || "—"}
-              </p>
-            )}
-          </div>
+                    <input
+                      type="text"
+                      value={applicantEditForm.salaryRange}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          salaryRange: e.target.value,
+                        })
+                      }
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
+                      placeholder="e.g. $3,000-$5,000/month"
+                    />
+                  ) : (
+                    <p
+                      className={`text-base ${darkMode ? "text-gray-200" : "text-gray-900"}`}
+                    >
+                      {selectedPosition?.position.job_salary_range || "—"}
+                    </p>
+                  )}
+                </div>
 
                 {/* Meeting Link */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Meeting Link</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Meeting Link
+                  </p>
                   {isEditingApplicant ? (
                     <input
                       type="text"
@@ -1230,7 +1373,11 @@ export default function JobOrders({
 
                 {/* Declined Reason */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Declined Reason</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Declined Reason
+                  </p>
                   {isEditingApplicant ? (
                     <textarea
                       value={applicantEditForm.declinedReason}
@@ -1245,8 +1392,14 @@ export default function JobOrders({
                       placeholder="Enter declined reason (if applicable)"
                     />
                   ) : selectedApplicant.declined_reason ? (
-                    <div className={`border rounded-lg p-4 ${darkMode ? 'bg-orange-900/30 border-orange-700' : 'bg-orange-50 border-orange-200'}`}>
-                      <p className={darkMode ? 'text-orange-300' : 'text-orange-800'}>
+                    <div
+                      className={`border rounded-lg p-4 ${darkMode ? "bg-orange-900/30 border-orange-700" : "bg-orange-50 border-orange-200"}`}
+                    >
+                      <p
+                        className={
+                          darkMode ? "text-orange-300" : "text-orange-800"
+                        }
+                      >
                         {selectedApplicant.declined_reason}
                       </p>
                     </div>
@@ -1257,7 +1410,11 @@ export default function JobOrders({
 
                 {/* Rejected Reason */}
                 <div>
-                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Rejected Reason</p>
+                  <p
+                    className={`text-sm mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Rejected Reason
+                  </p>
                   {isEditingApplicant ? (
                     <textarea
                       value={applicantEditForm.rejectedReason}
@@ -1272,8 +1429,10 @@ export default function JobOrders({
                       placeholder="Enter rejected reason (if applicable)"
                     />
                   ) : selectedApplicant.rejected_reason ? (
-                    <div className={`border rounded-lg p-4 ${darkMode ? 'bg-red-900/30 border-red-700' : 'bg-red-50 border-red-200'}`}>
-                      <p className={darkMode ? 'text-red-300' : 'text-red-800'}>
+                    <div
+                      className={`border rounded-lg p-4 ${darkMode ? "bg-red-900/30 border-red-700" : "bg-red-50 border-red-200"}`}
+                    >
+                      <p className={darkMode ? "text-red-300" : "text-red-800"}>
                         {selectedApplicant.rejected_reason}
                       </p>
                     </div>
@@ -1283,11 +1442,17 @@ export default function JobOrders({
                 </div>
 
                 {/* Resume */}
-                <div className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
+                <div
+                  className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? "bg-blue-900/30" : "bg-blue-50"}`}
+                >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <FileText className="w-5 h-5 text-blue-600" />
-                      <h3 className={`font-bold ${darkMode ? 'text-blue-300' : 'text-blue-900'}`}>Resume</h3>
+                      <h3
+                        className={`font-bold ${darkMode ? "text-blue-300" : "text-blue-900"}`}
+                      >
+                        Resume
+                      </h3>
                     </div>
                     <div className="flex space-x-2">
                       {selectedApplicant.resume_url ? (
@@ -1321,7 +1486,9 @@ export default function JobOrders({
               </div>
 
               {/* Footer */}
-              <div className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div
+                className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}
+              >
                 <div className="relative group">
                   <button
                     disabled={
@@ -1377,11 +1544,19 @@ export default function JobOrders({
                             selectedApplicant.application_id,
                           );
                         // After the t_applications update, add this:
-                        if (applicantEditForm.salaryRange !== selectedPosition?.position.job_salary_range) {
+                        if (
+                          applicantEditForm.salaryRange !==
+                          selectedPosition?.position.job_salary_range
+                        ) {
                           await supabase
                             .from("t_job_positions")
-                            .update({ job_salary_range: applicantEditForm.salaryRange })
-                            .eq("position_id", selectedPosition!.position.position_id);
+                            .update({
+                              job_salary_range: applicantEditForm.salaryRange,
+                            })
+                            .eq(
+                              "position_id",
+                              selectedPosition!.position.position_id,
+                            );
                           // Sync it locally too
                           setSelectedPosition({
                             ...selectedPosition!,
@@ -1446,9 +1621,15 @@ export default function JobOrders({
         {/* Add Position Modal */}
         {showAddPositionModal && (
           <div className="fixed inset-0 bg-white/30 backdrop-blur-md flex items-center justify-center z-50 p-4">
-            <div className={`rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className={`flex items-center justify-between p-6 border-b sticky top-0 ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
-                <h2 className={`text-2xl font-bold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div
+              className={`rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto ${darkMode ? "bg-gray-800" : "bg-white"}`}
+            >
+              <div
+                className={`flex items-center justify-between p-6 border-b sticky top-0 ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+              >
+                <h2
+                  className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+                >
                   Add New Position
                 </h2>
                 <button
@@ -1573,7 +1754,9 @@ export default function JobOrders({
                   </select>
                 </div>
               </div>
-              <div className={`flex items-center justify-end space-x-3 p-6 border-t ${darkMode ? 'bg-gray-900 border-gray-700' : 'bg-gray-50 border-gray-200'}`}>
+              <div
+                className={`flex items-center justify-end space-x-3 p-6 border-t ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}
+              >
                 <button
                   onClick={() => setShowAddPositionModal(false)}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
@@ -1598,8 +1781,12 @@ export default function JobOrders({
   // Form View
   if (viewMode === "form") {
     return (
-      <div className={`h-full flex flex-col ${darkMode ? 'bg-gray-900' : 'bg-gray-50'}`}>
-        <div className={`border-b px-6 py-5 shadow-sm ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+      <div
+        className={`h-full flex flex-col ${darkMode ? "bg-gray-900" : "bg-gray-50"}`}
+      >
+        <div
+          className={`border-b px-6 py-5 shadow-sm ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+        >
           <div className="flex items-center space-x-4 max-w-7xl mx-auto">
             <button
               onClick={() => {
@@ -1627,12 +1814,18 @@ export default function JobOrders({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 max-w-7xl mx-auto">
             {/* Left - Job Order Info */}
             <div className="space-y-6">
-              <div className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                <div className={`border-l-4 border-green-600 p-5 rounded-lg space-y-4 ${darkMode ? 'bg-green-900/30' : 'bg-green-50'}`}>
-                  <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+              <div
+                className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? "bg-gray-800" : "bg-white"}`}
+              >
+                <div
+                  className={`border-l-4 border-green-600 p-5 rounded-lg space-y-4 ${darkMode ? "bg-green-900/30" : "bg-green-50"}`}
+                >
+                  <h3
+                    className={`text-lg font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                  >
                     Job Order Information
                   </h3>
-                  
+
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Company <span className="text-red-500">*</span>
@@ -1758,9 +1951,15 @@ export default function JobOrders({
 
               {/* Added positions preview */}
               {positions.length > 0 && (
-                <div className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-                  <div className={`border-l-4 border-blue-600 p-5 rounded-lg ${darkMode ? 'bg-blue-900/30' : 'bg-blue-50'}`}>
-                    <h3 className={`text-lg font-semibold mb-4 ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+                <div
+                  className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? "bg-gray-800" : "bg-white"}`}
+                >
+                  <div
+                    className={`border-l-4 border-blue-600 p-5 rounded-lg ${darkMode ? "bg-blue-900/30" : "bg-blue-50"}`}
+                  >
+                    <h3
+                      className={`text-lg font-semibold mb-4 ${darkMode ? "text-white" : "text-gray-900"}`}
+                    >
                       Added Positions ({positions.length})
                     </h3>
                     <div className="space-y-3 max-h-80 overflow-y-auto">
@@ -1797,9 +1996,15 @@ export default function JobOrders({
             </div>
 
             {/* Right - Add Position form */}
-            <div className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? 'bg-gray-800' : 'bg-white'}`}>
-              <div className={`border-l-4 border-purple-600 p-5 rounded-lg space-y-4 ${darkMode ? 'bg-purple-900/30' : 'bg-purple-50'}`}>
-                <h3 className={`text-lg font-semibold ${darkMode ? 'text-white' : 'text-gray-900'}`}>
+            <div
+              className={`border border-gray-200 rounded-xl p-6 shadow-sm ${darkMode ? "bg-gray-800" : "bg-white"}`}
+            >
+              <div
+                className={`border-l-4 border-purple-600 p-5 rounded-lg space-y-4 ${darkMode ? "bg-purple-900/30" : "bg-purple-50"}`}
+              >
+                <h3
+                  className={`text-lg font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                >
                   Add Position
                 </h3>
 
@@ -1952,9 +2157,11 @@ export default function JobOrders({
           </div>
         </div>
 
-       <div className={`border-t px-6 py-4 shadow-lg ${darkMode ? 'bg-gray-800 border-gray-700' : 'bg-white border-gray-200'}`}>
+        <div
+          className={`border-t px-6 py-4 shadow-lg ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
+        >
           <div className="max-w-7xl mx-auto flex justify-between items-center">
-            <p className={darkMode ? 'text-gray-300' : 'text-gray-700'}>
+            <p className={darkMode ? "text-gray-300" : "text-gray-700"}>
               <span className="font-semibold text-lg">{positions.length}</span>{" "}
               position{positions.length !== 1 ? "s" : ""} added
             </p>
@@ -2106,9 +2313,8 @@ export default function JobOrders({
                     <div>
                       <h3
                         className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
-                         
                       >
-                        JO-{jo.jo_id}
+                        {`JO-${String(jo.jo_id).padStart(5, "0")}`}
                       </h3>
                       <p
                         className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
@@ -2117,42 +2323,52 @@ export default function JobOrders({
                       </p>
                       <div className="flex items-center space-x-2 mt-1">
                         {/* job order status*/}
-                       <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
-                         {editingStatus === jo.jo_id ? (
-                  <select
-                    value={getStatusLabel(jo.is_active, jo.is_posted)}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      const is_posted = val !== "On Hold";
-                      const is_active = val === "Active";
-                      handleToggleJobOrderStatus(jo.jo_id, is_active, is_posted);
-                      setEditingStatus(null);
-                    }}
-                    onBlur={() => setEditingStatus(null)}
-                    autoFocus
-                    className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none font-medium ${getStatusColor(jo.is_active, jo.is_posted)} ${darkMode ? 'bg-gray-700 border-blue-400 text-white' : ''}`}
-                    >
-                    <option value="Active">Active</option>
-                    <option value="On Hold">On Hold</option>
-                    <option value="Closed">Closed</option>
-                  </select>) : (
-                  <button
-                    onClick={() => setEditingStatus(jo.jo_id)}
-                    className={`text-xs px-2 py-0.5 rounded-full flex items-center space-x-1 hover:opacity-80 font-medium ${getStatusColor(jo.is_active, jo.is_posted)}`}
-                    >
-                    <span>{getStatusLabel(jo.is_active, jo.is_posted)}</span>
-                    <ChevronDown className="w-3 h-3" />
-                  </button>
-                )}
-                       </div>
+                        <div
+                          className="relative inline-block"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          {editingStatus === jo.jo_id ? (
+                            <select
+                              value={getStatusLabel(jo.is_active, jo.is_posted)}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                const is_posted = val !== "On Hold";
+                                const is_active = val === "Active";
+                                handleToggleJobOrderStatus(
+                                  jo.jo_id,
+                                  is_active,
+                                  is_posted,
+                                );
+                                setEditingStatus(null);
+                              }}
+                              onBlur={() => setEditingStatus(null)}
+                              autoFocus
+                              className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none font-medium ${getStatusColor(jo.is_active, jo.is_posted)} ${darkMode ? "bg-gray-700 border-blue-400 text-white" : ""}`}
+                            >
+                              <option value="Active">Active</option>
+                              <option value="On Hold">On Hold</option>
+                              <option value="Closed">Closed</option>
+                            </select>
+                          ) : (
+                            <button
+                              onClick={() => setEditingStatus(jo.jo_id)}
+                              className={`text-xs px-2 py-0.5 rounded-full flex items-center space-x-1 hover:opacity-80 font-medium ${getStatusColor(jo.is_active, jo.is_posted)}`}
+                            >
+                              <span>
+                                {getStatusLabel(jo.is_active, jo.is_posted)}
+                              </span>
+                              <ChevronDown className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="flex items-center space-x-6">
                     <div className="text-right hidden sm:block">
                       <p
-                        className={`text-sm mb-1 ${darkMode ? 'text-gray-300' : 'text-gray-600'}`}
-                        >
+                        className={`text-sm mb-1 ${darkMode ? "text-gray-300" : "text-gray-600"}`}
+                      >
                         Slots Needed
                       </p>
                       <p className="text-lg font-bold text-green-600">
