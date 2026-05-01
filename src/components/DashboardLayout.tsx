@@ -79,8 +79,8 @@ export default function DashboardLayout({
     { id: "users", label: "Manage Users", icon: Users, permission: "Manage Users"}, // Manage Users
     { id: "roles", label: "Manage Roles", icon: Shield, permission: "Manage Roles"}, // Manage Roles
     { id: "applicants", label: "Applicants", icon: UserCheck, permission: "" },
-    { id: "joborders", label: "Job Orders", icon: Briefcase, permission: "View Job Orders" },
     { id: "companies", label: "Companies", icon: Building2, permission: ""},
+    { id: "joborders", label: "Job Orders", icon: Briefcase, permission: "View Job Orders" },
     {
       id: "predeployment",
       label: "Pre-Deployment Checklist",
