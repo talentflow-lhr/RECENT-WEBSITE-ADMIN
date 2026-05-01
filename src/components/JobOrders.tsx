@@ -2047,8 +2047,10 @@ export default function JobOrders({
                     <div>
                       <h3
                         className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
-                         JO-{jo.jo_id}
-                      ></h3>
+                         
+                      >
+                        JO-{jo.jo_id}
+                      </h3>
                       <p
                         className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
                       >
