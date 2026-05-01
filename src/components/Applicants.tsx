@@ -8,6 +8,8 @@ import {
   Award,
   BookOpen,
   Send,
+  FileText,
+  Eye,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -26,6 +28,9 @@ interface Applicant {
   jo_id: number;
   interviewer: string;
   meeting_link: string;
+  interview_date: string;
+  salary_range: string;
+  resume_url: string;
   declined_reason: string;
   rejected_reason: string;
   skills: string[];
@@ -48,6 +53,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     interviewer: "",
+    interviewDate: "",
     meetingLink: "",
     declinedReason: "",
     rejectedReason: "",
@@ -90,11 +96,13 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         ),
         t_job_positions(
           job_title,
-          jo_id
+          jo_id,
+          job_salary_range
         ),
         t_resume(
           resume_id,
           t_resume_skills(rs_skill_name, rs_proficiency_level),
+          res_pdf_link,
           t_certificate_training(cert_certificate_title),
           t_work_experience(exp_position, exp_company, exp_start_date, exp_end_date)
         ),
@@ -125,6 +133,9 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
       meeting_link: row.application_meeting_link || "",
       declined_reason: row.application_decline_reason || "",
       rejected_reason: row.application_rejected_reason || "",
+      interview_date: row.application_interview_schedule || "",
+      salary_range: row.t_job_positions?.job_salary_range || "",
+      resume_url: row.t_resume?.res_pdf_link || "",
       skills: (row.t_resume?.t_resume_skills || []).map(
         (s: any) => s.rs_skill_name,
       ),
@@ -179,6 +190,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         application_meeting_link: editForm.meetingLink,
         application_decline_reason: editForm.declinedReason,
         application_rejected_reason: editForm.rejectedReason,
+        application_interview_schedule: editForm.interviewDate,
       })
       .eq("application_id", selectedApplicant.application_id);
 
@@ -191,6 +203,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
       ...selectedApplicant,
       interviewer: editForm.interviewer,
       meeting_link: editForm.meetingLink,
+      interview_date: editForm.interviewDate,
       declined_reason: editForm.declinedReason,
       rejected_reason: editForm.rejectedReason,
     };
@@ -446,6 +459,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                       setIsEditing(false);
                       setEditForm({
                         interviewer: applicant.interviewer || "",
+                        interviewDate: applicant.interview_date || "",
                         meetingLink: applicant.meeting_link || "",
                         declinedReason: applicant.declined_reason || "",
                         rejectedReason: applicant.rejected_reason || "",
@@ -612,6 +626,12 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                     label: "Meeting Link",
                     value: selectedApplicant.meeting_link || "—",
                   },
+                  { label: "Salary Range", 
+                   value: selectedApplicant.salary_range || "—" 
+                  },
+                  { label: "Interview Date", 
+                   value: selectedApplicant.interview_date || "—" 
+                  },
                 ].map(({ label, value }) => (
                   <div key={label}>
                     <p
@@ -769,8 +789,36 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                   </p>
                 )}
               </div>
+              {/* Resume View/Download */}
+              <div className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <h3 className={`font-bold ${darkMode ? "text-blue-200" : "text-blue-900"}`}>Resume</h3>
+                  </div>
+                  <div className="flex space-x-2">
+                    
+                      <a href={selectedApplicant.resume_url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>View</span>
+                    </a>
+                    
+                      <a href={selectedApplicant.resume_url || "#"}
+                      download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
+                      className="flex items-center space-x-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download PDF</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
-
+          
             {/* Editable Fields */}
             {isEditing && (
               <div className="px-6 pb-6 space-y-4">
@@ -789,6 +837,17 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                     placeholder="Enter interviewer name"
                   />
+                </div>
+                <div>
+                  <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                    Interview Date
+                  </p>
+                  <input
+                    type="date"
+                    value={editForm.interviewDate}
+                    onChange={(e) => setEditForm({ ...editForm, interviewDate: e.target.value })}
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    />
                 </div>
                 <div>
                   <p
