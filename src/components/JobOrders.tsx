@@ -183,6 +183,7 @@ export default function JobOrders({
             application_meeting_link,
             application_decline_reason,
             application_rejected_reason,
+            application_interview_schedule,
             t_applicant(app_first_name, app_last_name),
             t_resume(res_pdf_link),
             applied_date:t_date!t_applications_applied_date_id_fkey(full_date)
@@ -234,6 +235,7 @@ export default function JobOrders({
           meeting_link: app.application_meeting_link || "",
           declined_reason: app.application_decline_reason || "",
           rejected_reason: app.application_rejected_reason || "",
+          interview_date: app.application_interview_schedule || "",
           resume_url: app.t_resume?.res_pdf_link || "",
         })),
       })),
@@ -963,6 +965,7 @@ export default function JobOrders({
                               setApplicantEditForm({
                                 interviewer: applicant.interviewer || "",
                                 meetingLink: applicant.meeting_link || "",
+                                interviewDate: applicant.interview_date || "",
                                 declinedReason: applicant.declined_reason || "",
                                 rejectedReason: applicant.rejected_reason || "",
                               });
@@ -1156,6 +1159,28 @@ export default function JobOrders({
                   )}
                 </div>
 
+                 {/* Interview Date */}
+                <div>
+                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Interview Date</p>
+                  {isEditingApplicant ? (
+                    <input
+                      type="date"
+                      value={applicantEditForm.interviewDate}
+                      onChange={(e) =>
+                        setApplicantEditForm({
+                          ...applicantEditForm,
+                          interviewDate: e.target.value,
+                        })
+                      }
+                      className={`w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : ''}`}
+                    />
+                  ) : (
+                    <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                      {selectedApplicant.interview_date || "—"}
+                    </p>
+                  )}
+                </div>
+
                 {/* Meeting Link */}
                 <div>
                   <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Meeting Link</p>
@@ -1321,6 +1346,8 @@ export default function JobOrders({
                           .update({
                             application_interviewer:
                               applicantEditForm.interviewer,
+                            application_interview_schedule:
+                              applicantEditForm.interviewDate,
                             application_meeting_link:
                               applicantEditForm.meetingLink,
                             application_decline_reason:
@@ -1341,6 +1368,7 @@ export default function JobOrders({
                         const updatedApplicant = {
                           ...selectedApplicant,
                           interviewer: applicantEditForm.interviewer,
+                          interview_date: applicantEditForm.interviewDate,
                           meeting_link: applicantEditForm.meetingLink,
                           declined_reason: applicantEditForm.declinedReason,
                           rejected_reason: applicantEditForm.rejectedReason,
