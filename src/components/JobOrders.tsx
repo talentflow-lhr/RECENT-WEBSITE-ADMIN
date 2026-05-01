@@ -102,6 +102,7 @@ export default function JobOrders({
   );
   const [showAddPositionModal, setShowAddPositionModal] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [editingStatus, setEditingStatus] = useState<number | null>(null);
   const [selectedApplicant, setSelectedApplicant] = useState<any>(null);
   const [isEditingApplicant, setIsEditingApplicant] = useState(false);
   const [applicantEditForm, setApplicantEditForm] = useState({
@@ -260,18 +261,24 @@ export default function JobOrders({
       .eq("employee_is_active", true);
     if (data) setEmployees(data);
   };
-
+// added this for the label
   const getStatusLabel = (is_active: boolean, is_posted: boolean) => {
-    if (!is_posted) return "Draft";
+    if (!is_posted) return "On Hold";
     if (is_active) return "Active";
     return "Closed";
   };
 
   const getStatusColor = (is_active: boolean, is_posted: boolean) => {
-    if (!is_posted) return "bg-gray-100 text-gray-800";
-    if (is_active) return "bg-green-100 text-green-800";
-    return "bg-red-100 text-red-800";
-  };
+    if (!is_posted) return darkMode
+      ? "bg-yellow-900 text-yellow-200"
+      : "bg-yellow-100 text-yellow-800";
+    if (is_active) return darkMode
+      ? "bg-green-900 text-green-200"
+      : "bg-green-100 text-green-800";
+  return darkMode
+    ? "bg-red-900 text-red-200"
+    : "bg-red-100 text-red-800";
+};
 
   const getApplicantStatusColor = (status: string) => {
     switch (status) {
@@ -1978,10 +1985,11 @@ export default function JobOrders({
             onChange={(e) => setFilterStatus(e.target.value)}
             className={`px-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "border-gray-300"}`}
           >
+            {/* Labels fix*/}
             <option>All</option>
             <option>Active</option>
             <option>Closed</option>
-            <option>Draft</option>
+            <option>On Hold</option>
           </select>
         </div>
         <button
@@ -2039,6 +2047,7 @@ export default function JobOrders({
                     <div>
                       <h3
                         className={`font-mono font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                         JO-{jo.jo_id}
                       ></h3>
                       <p
                         className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-600"}`}
@@ -2046,17 +2055,35 @@ export default function JobOrders({
                         {jo.company_name}
                       </p>
                       <div className="flex items-center space-x-2 mt-1">
-                        <span
-                          className={`text-xs px-2 py-0.5 rounded-full font-medium ${getStatusColor(jo.is_active, jo.is_posted)}`}
-                        >
-                          {getStatusLabel(jo.is_active, jo.is_posted)}
-                        </span>
-                        <span
-                          className={`text-xs ${darkMode ? "text-gray-500" : "text-gray-500"}`}
-                        >
-                          {jo.positions.length} Position
-                          {jo.positions.length !== 1 ? "s" : ""}
-                        </span>
+                        {/* job order status*/}
+                       <div className="relative inline-block" onClick={(e) => e.stopPropagation()}>
+                         {editingStatus === jo.jo_id ? (
+                  <select
+                    value={getStatusLabel(jo.is_active, jo.is_posted)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      const is_posted = val !== "On Hold";
+                      const is_active = val === "Active";
+                      handleToggleJobOrderStatus(jo.jo_id, is_active, is_posted);
+                      setEditingStatus(null);
+                    }}
+                    onBlur={() => setEditingStatus(null)}
+                    autoFocus
+                    className={`text-xs px-2 py-1 rounded-full border-2 border-blue-500 focus:outline-none font-medium ${getStatusColor(jo.is_active, jo.is_posted)} ${darkMode ? 'bg-gray-700 border-blue-400 text-white' : ''}`}
+                    >
+                    <option value="Active">Active</option>
+                    <option value="On Hold">On Hold</option>
+                    <option value="Closed">Closed</option>
+                  </select>) : (
+                  <button
+                    onClick={() => setEditingStatus(jo.jo_id)}
+                    className={`text-xs px-2 py-0.5 rounded-full flex items-center space-x-1 hover:opacity-80 font-medium ${getStatusColor(jo.is_active, jo.is_posted)}`}
+                    >
+                    <span>{getStatusLabel(jo.is_active, jo.is_posted)}</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </button>
+                )}
+                       </div>
                       </div>
                     </div>
                   </div>
