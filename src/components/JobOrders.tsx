@@ -108,8 +108,10 @@ export default function JobOrders({
   const [applicantEditForm, setApplicantEditForm] = useState({
     interviewer: "",
     meetingLink: "",
+    interviewDate: "",
     declinedReason: "",
     rejectedReason: "",
+    salaryRange:"",
   });
 
   const [jobOrderForm, setJobOrderForm] = useState({
@@ -968,6 +970,7 @@ export default function JobOrders({
                                 interviewDate: applicant.interview_date || "",
                                 declinedReason: applicant.declined_reason || "",
                                 rejectedReason: applicant.rejected_reason || "",
+                                salaryRange: selectedPosition?.position.job_salary_range || "",
                               });
                             }}
                           >
@@ -1128,12 +1131,6 @@ export default function JobOrders({
                       {selectedApplicant.applied_date || "—"}
                     </p>
                   </div>
-                  <div>
-                    <p className={`text-sm mb-1 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Salary Range</p>
-                    <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
-                      {selectedPosition?.position.job_salary_range || "—"}
-                    </p>
-                  </div>
                 </div>
 
                 {/* Interviewer */}
@@ -1180,6 +1177,26 @@ export default function JobOrders({
                     </p>
                   )}
                 </div>
+
+                {/* Salary Range */}
+                <div>
+                  <p className={`text-sm mb-2 ${darkMode ? 'text-gray-400' : 'text-gray-500'}`}>Salary Range</p>
+                  {isEditingApplicant ? (
+              <input
+                type="text"
+                value={applicantEditForm.salaryRange}
+                onChange={(e) =>
+                  setApplicantEditForm({ ...applicantEditForm, salaryRange: e.target.value })
+                }
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? 'bg-gray-700 border-gray-600 text-white' : 'border-gray-300'}`}
+                placeholder="e.g. $3,000-$5,000/month"
+                />
+            ) : (
+              <p className={`text-base ${darkMode ? 'text-gray-200' : 'text-gray-900'}`}>
+                {selectedPosition?.position.job_salary_range || "—"}
+              </p>
+            )}
+          </div>
 
                 {/* Meeting Link */}
                 <div>
@@ -1359,7 +1376,21 @@ export default function JobOrders({
                             "application_id",
                             selectedApplicant.application_id,
                           );
-
+                        // After the t_applications update, add this:
+                        if (applicantEditForm.salaryRange !== selectedPosition?.position.job_salary_range) {
+                          await supabase
+                            .from("t_job_positions")
+                            .update({ job_salary_range: applicantEditForm.salaryRange })
+                            .eq("position_id", selectedPosition!.position.position_id);
+                          // Sync it locally too
+                          setSelectedPosition({
+                            ...selectedPosition!,
+                            position: {
+                              ...selectedPosition!.position,
+                              job_salary_range: applicantEditForm.salaryRange,
+                            },
+                          });
+                        }
                         if (updateError) {
                           alert("Failed to save changes.");
                           return;
