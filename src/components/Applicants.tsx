@@ -28,6 +28,7 @@ interface Applicant {
   meeting_link: string;
   declined_reason: string;
   rejected_reason: string;
+  interview_date: string;
   skills: string[];
   certifications: string[];
   experience: string[];
@@ -51,6 +52,8 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
     meetingLink: "",
     declinedReason: "",
     rejectedReason: "",
+    interviewDate: "",
+
   });
 
   const statuses = [
@@ -81,6 +84,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         application_meeting_link,
         application_decline_reason,
         application_rejected_reason,
+        application_interview_schedule,
         t_applicant(
           applicant_id,
           app_first_name,
@@ -125,6 +129,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
       meeting_link: row.application_meeting_link || "",
       declined_reason: row.application_decline_reason || "",
       rejected_reason: row.application_rejected_reason || "",
+      interview_date: row.application_interview_schedule || "",
       skills: (row.t_resume?.t_resume_skills || []).map(
         (s: any) => s.rs_skill_name,
       ),
@@ -179,6 +184,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         application_meeting_link: editForm.meetingLink,
         application_decline_reason: editForm.declinedReason,
         application_rejected_reason: editForm.rejectedReason,
+        application_interview_schedule: editForm.interviewDate,
       })
       .eq("application_id", selectedApplicant.application_id);
 
@@ -193,6 +199,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
       meeting_link: editForm.meetingLink,
       declined_reason: editForm.declinedReason,
       rejected_reason: editForm.rejectedReason,
+      interview_date: editForm.interviewDate,
     };
 
     setSelectedApplicant(updated);
@@ -449,6 +456,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                         meetingLink: applicant.meeting_link || "",
                         declinedReason: applicant.declined_reason || "",
                         rejectedReason: applicant.rejected_reason || "",
+                        interviewDate: applicant.interview_date || "",
                       });
                     }}
                   >
@@ -584,89 +592,56 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
               <div className="grid grid-cols-2 gap-4">
                 {[
                   { label: "Email", value: selectedApplicant.app_email },
-                  {
-                    label: "Job Order ID",
-                    value: selectedApplicant.jo_id || "—",
-                  },
-                  {
-                    label: "Resume Score",
-                    value: `${selectedApplicant.resume_score?.toFixed(1)}%`,
-                  },
-                  {
-                    label: "Job Fit Score",
-                    value: `${selectedApplicant.job_fit_score?.toFixed(1)}%`,
-                  },
-                  {
-                    label: "Applied Date",
-                    value: selectedApplicant.applied_date,
-                  },
-                  {
-                    label: "Status",
-                    value: selectedApplicant.application_current_status,
-                  },
-                  {
-                    label: "Interviewer",
-                    value: selectedApplicant.interviewer || "—",
-                  },
-                  {
-                    label: "Meeting Link",
-                    value: selectedApplicant.meeting_link || "—",
-                  },
+                  { label: "Job Order ID", value: selectedApplicant.jo_id || "—" },
+                  { label: "Resume Score", value: `${selectedApplicant.resume_score?.toFixed(1)}%` },
+                  { label: "Job Fit Score", value: `${selectedApplicant.job_fit_score?.toFixed(1)}%` },
+                  { label: "Applied Date", value: selectedApplicant.applied_date },
+                  { label: "Status", value: selectedApplicant.application_current_status },
                 ].map(({ label, value }) => (
                   <div key={label}>
-                    <p
-                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                    >
-                      {label}
-                    </p>
-                    {label === "Meeting Link" &&
-                    selectedApplicant.meeting_link ? (
-                      <a
-                        href={selectedApplicant.meeting_link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-green-600 hover:underline text-sm break-all"
-                      >
-                        {selectedApplicant.meeting_link}
-                      </a>
-                    ) : (
-                      <p
-                        className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}
-                      >
-                        {value}
-                      </p>
-                    )}
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>{label}</p>
+                    <p className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}>{value}</p>
                   </div>
                 ))}
 
-                {/* Declined Reason */}
-                {selectedApplicant.declined_reason && (
+                {/* Interviewer — only when Scheduled or Interviewed */}
+                {["Scheduled", "Interviewed"].includes(selectedApplicant.application_current_status) && (
+                  <div>
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interviewer</p>
+                    <p className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}>{selectedApplicant.interviewer || "—"}</p>
+                  </div>
+                )}
+
+                {/* Meeting Link — only when Scheduled or Interviewed */}
+                {["Scheduled", "Interviewed"].includes(selectedApplicant.application_current_status) && (
+                  <div>
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Meeting Link</p>
+                    {selectedApplicant.meeting_link ? (
+                      <a href={selectedApplicant.meeting_link} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:underline text-sm break-all">
+                        {selectedApplicant.meeting_link}
+                      </a>
+                    ) : (
+                      <p className={`text-base ${darkMode ? "text-white" : "text-gray-900"}`}>—</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Declined Reason — only when Declined */}
+                {selectedApplicant.application_current_status === "Declined" && selectedApplicant.declined_reason && (
                   <div className="col-span-2">
-                    <p
-                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                    >
-                      Declined Reason
-                    </p>
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Declined Reason</p>
                     <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                      <p className="text-orange-800 text-sm">
-                        {selectedApplicant.declined_reason}
-                      </p>
+                      <p className="text-orange-800 text-sm">{selectedApplicant.declined_reason}</p>
                     </div>
                   </div>
                 )}
 
-                {/* Rejected Reason */}
-                {selectedApplicant.rejected_reason && (
+                {/* Rejected Reason — only when Rejected */}
+                {selectedApplicant.application_current_status === "Rejected" && selectedApplicant.rejected_reason && (
                   <div className="col-span-2">
-                    <p
-                      className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                    >
-                      Rejected Reason
-                    </p>
+                    <p className={`text-sm font-medium mb-1 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rejected Reason</p>
                     <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                      <p className="text-red-800 text-sm">
-                        {selectedApplicant.rejected_reason}
-                      </p>
+                      <p className="text-red-800 text-sm">{selectedApplicant.rejected_reason}</p>
                     </div>
                   </div>
                 )}
@@ -774,90 +749,81 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
             {/* Editable Fields */}
             {isEditing && (
               <div className="px-6 pb-6 space-y-4">
-                <div>
-                  <p
-                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Interviewer
-                  </p>
-                  <input
-                    type="text"
-                    value={editForm.interviewer}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, interviewer: e.target.value })
-                    }
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                    placeholder="Enter interviewer name"
-                  />
-                </div>
-                <div>
-                  <p
-                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Meeting Link
-                  </p>
-                  <input
-                    type="text"
-                    value={editForm.meetingLink}
-                    onChange={(e) =>
-                      setEditForm({ ...editForm, meetingLink: e.target.value })
-                    }
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                    placeholder="https://meet.example.com/..."
-                  />
-                </div>
-                <div>
-                  <p
-                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Declined Reason
-                  </p>
-                  <textarea
-                    value={editForm.declinedReason}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        declinedReason: e.target.value,
-                      })
-                    }
-                    rows={3}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                    placeholder="Enter declined reason (if applicable)"
-                  />
-                </div>
-                <div>
-                  <p
-                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Rejected Reason
-                  </p>
-                  <textarea
-                    value={editForm.rejectedReason}
-                    onChange={(e) =>
-                      setEditForm({
-                        ...editForm,
-                        rejectedReason: e.target.value,
-                      })
-                    }
-                    rows={3}
-                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
-                    placeholder="Enter rejected reason (if applicable)"
-                  />
-                </div>
+
+                {/* Interviewer + Meeting Link — only for Scheduled/Interviewed */}
+                {["Scheduled", "Interviewed"].includes(selectedApplicant.application_current_status) && (
+                  <>
+                    <div>
+                      <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interviewer</p>
+                      <input
+                        type="text"
+                        value={editForm.interviewer}
+                        onChange={(e) => setEditForm({ ...editForm, interviewer: e.target.value })}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                        placeholder="Enter interviewer name"
+                      />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Meeting Link</p>
+                      <input
+                        type="text"
+                        value={editForm.meetingLink}
+                        onChange={(e) => setEditForm({ ...editForm, meetingLink: e.target.value })}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                        placeholder="https://meet.example.com/..."
+                      />
+                    </div>
+                    <div>
+                      <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interview Date</p>
+                      <input
+                        type="date"
+                        value={editForm.interviewDate}
+                        onChange={(e) => setEditForm({ ...editForm, interviewDate: e.target.value })}
+                        className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                      />
+                    </div>
+                  </>
+                )}
+
+                {/* Declined Reason — only when Declined */}
+                {selectedApplicant.application_current_status === "Declined" && (
+                  <div>
+                    <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Declined Reason</p>
+                    <textarea
+                      value={editForm.declinedReason}
+                      onChange={(e) => setEditForm({ ...editForm, declinedReason: e.target.value })}
+                      rows={3}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                      placeholder="Enter declined reason"
+                    />
+                  </div>
+                )}
+
+                {/* Rejected Reason — only when Rejected */}
+                {selectedApplicant.application_current_status === "Rejected" && (
+                  <div>
+                    <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Rejected Reason</p>
+                    <textarea
+                      value={editForm.rejectedReason}
+                      onChange={(e) => setEditForm({ ...editForm, rejectedReason: e.target.value })}
+                      rows={3}
+                      className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                      placeholder="Enter rejected reason"
+                    />
+                  </div>
+                )}
               </div>
             )}
-
+            
             {/* Modal Footer */}
             <div
               className={`sticky bottom-0 border-t px-6 py-4 flex justify-between items-center ${darkMode ? "bg-gray-900 border-gray-700" : "bg-gray-50 border-gray-200"}`}
             >
               <div className="relative group">
                 <button
-                  disabled={
-                    selectedApplicant.application_current_status !== "Accepted"
-                  }
+                  disabled={selectedApplicant.application_current_status !== "Interviewed"}
                   className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                    selectedApplicant.application_current_status === "Accepted"
+                    selectedApplicant.application_current_status === "Interviewed"
                       ? "bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
                       : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
@@ -866,9 +832,9 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                   <span>Send Offer</span>
                 </button>
                 {selectedApplicant.application_current_status !==
-                  "Accepted" && (
+                  "Interviewed" && (
                   <div className="absolute bottom-full left-0 mb-2 hidden group-hover:block w-48 bg-gray-900 text-white text-xs rounded-lg py-2 px-3 shadow-lg">
-                    Applicant must be accepted first
+                    Applicant must be interviewed first
                   </div>
                 )}
               </div>
