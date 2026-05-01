@@ -36,6 +36,7 @@ interface Applicant {
   skills: string[];
   certifications: string[];
   experience: string[];
+  salary_offer: string;
 }
 
 export default function Applicants({ darkMode, hasPermission }: { darkMode: boolean , hasPermission: boolean}) {
@@ -57,6 +58,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
     meetingLink: "",
     declinedReason: "",
     rejectedReason: "",
+    salaryOffer: "",
   });
 
   const statuses = [
@@ -87,6 +89,8 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         application_meeting_link,
         application_decline_reason,
         application_rejected_reason,
+        application_interview_schedule,
+        application_salary_offer,
         t_applicant(
           applicant_id,
           app_first_name,
@@ -191,6 +195,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
         application_decline_reason: editForm.declinedReason,
         application_rejected_reason: editForm.rejectedReason,
         application_interview_schedule: editForm.interviewDate,
+        application_salary_offer: editForm.salaryOffer,
       })
       .eq("application_id", selectedApplicant.application_id);
 
@@ -204,6 +209,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
       interviewer: editForm.interviewer,
       meeting_link: editForm.meetingLink,
       interview_date: editForm.interviewDate,
+      salary_offer: editForm.salaryOffer,
       declined_reason: editForm.declinedReason,
       rejected_reason: editForm.rejectedReason,
     };
@@ -427,6 +433,8 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                   "Job Fit Score",
                   "Status",
                   "Applied Date",
+                  "Interviewer",
+                  "Salary Offer",
                 ].map((h) => (
                   <th
                     key={h}
@@ -460,6 +468,7 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                       setEditForm({
                         interviewer: applicant.interviewer || "",
                         interviewDate: applicant.interview_date || "",
+                        salaryOffer: applicant.salary_offer || "",
                         meetingLink: applicant.meeting_link || "",
                         declinedReason: applicant.declined_reason || "",
                         rejectedReason: applicant.rejected_reason || "",
@@ -533,6 +542,12 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                       className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
                     >
                       {applicant.applied_date}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                      {applicant.interviewer || <span className="text-gray-400">—</span>}
+                    </td>
+                    <td className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}>
+                      {applicant.salary_offer || <span className="text-gray-400">—</span>}
                     </td>
                   </tr>
                 ))
@@ -628,6 +643,9 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                   },
                   { label: "Salary Range", 
                    value: selectedApplicant.salary_range || "—" 
+                  },
+                  { label: "Salary Offer", 
+                   value: selectedApplicant.salary_offer || "—" 
                   },
                   { label: "Interview Date", 
                    value: selectedApplicant.interview_date || "—" 
@@ -797,20 +815,27 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                     <h3 className={`font-bold ${darkMode ? "text-blue-200" : "text-blue-900"}`}>Resume</h3>
                   </div>
                   <div className="flex space-x-2">
-                    
-                      <a href={selectedApplicant.resume_url || "#"}
+                    <a href={selectedApplicant.resume_url || "#"}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center space-x-1 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
-                    >
+                      className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        selectedApplicant.resume_url
+                        ? "bg-blue-600 hover:bg-blue-700 text-white"
+                        : "bg-gray-300 text-gray-500 pointer-events-none cursor-not-allowed"
+                      }`}
+                      >
                       <Eye className="w-4 h-4" />
                       <span>View</span>
                     </a>
                     
                       <a href={selectedApplicant.resume_url || "#"}
                       download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
-                      className="flex items-center space-x-1 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
-                    >
+                      className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        selectedApplicant.resume_url
+                        ? "bg-green-600 hover:bg-green-700 text-white"
+                        : "bg-gray-300 text-gray-500 pointer-events-none cursor-not-allowed"
+                      }`}
+                        >
                       <Download className="w-4 h-4" />
                       <span>Download PDF</span>
                     </a>
@@ -821,13 +846,21 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
           
             {/* Editable Fields */}
             {isEditing && (
-              <div className="px-6 pb-6 space-y-4">
-                <div>
-                  <p
-                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
-                  >
-                    Interviewer
-                  </p>
+            <div className="px-6 pb-6 space-y-4">
+              <div>
+                <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  Salary Offer
+                </p>
+                <input
+                  type="text"
+                  value={editForm.salaryOffer}
+                  onChange={(e) => setEditForm({ ...editForm, salaryOffer: e.target.value })}
+                  className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                  placeholder="e.g. $5,000/month"
+                  />
+              </div>
+              <div>
+                <p className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Interviewer</p>
                   <input
                     type="text"
                     value={editForm.interviewer}
@@ -942,20 +975,20 @@ export default function Applicants({ darkMode, hasPermission }: { darkMode: bool
                   Close
                 </button>
                 {isEditing ? (
-                  <button
-                    onClick={handleSaveEdit}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                  >
-                    Save Changes
-                  </button>
-                ) : (
-                  <button
-                    onClick={() => setIsEditing(true)}
-                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-                  >
-                    Edit Application
-                  </button>
-                )}
+              <button
+                onClick={handleSaveEdit}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                Save Changes
+              </button>
+            ) : hasPermission ? (
+              <button
+                onClick={() => setIsEditing(true)}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                >
+                Edit Application
+              </button>
+            ) : null}
               </div>
             </div>
           </div>
