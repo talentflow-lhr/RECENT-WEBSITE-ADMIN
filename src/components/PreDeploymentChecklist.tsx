@@ -340,12 +340,11 @@ export default function PreDeploymentChecklist({
     return matchesSearch && matchesJobOrder && matchesPosition;
   });
 
-  function exportPredeploymentTableToExcel(
+  function exportPredeploymentTableToCSV(
     totalApplicants: number,
     completeCount: number,
     incompleteCount: number
   ) {
-    const dataType = 'application/vnd.ms-excel';
     const originalTable = document.getElementById('predeployment_table');
     if (!originalTable) return;
 
@@ -356,7 +355,7 @@ export default function PreDeploymentChecklist({
     const theadRow = tableClone.querySelector('thead tr');
     if (theadRow) {
       const allTh = theadRow.querySelectorAll('th');
-      const oldTh = allTh[2];   // 3rd <th> (index 2)
+      const oldTh = allTh[2]; // 3rd <th> (index 2)
       if (oldTh) {
         const companyTh = document.createElement('th');
         companyTh.className = oldTh.className;
@@ -378,11 +377,11 @@ export default function PreDeploymentChecklist({
       // Empty‑state row
       const emptyCell = row.querySelector('td[colspan]');
       if (emptyCell) {
-        emptyCell.setAttribute('colspan', '14');
+        emptyCell.setAttribute('colspan', '14'); // updated column count
         return;
       }
 
-      // a) Name column: remove avatar div
+      // a) Name column: remove avatar <div> (first inner div of the flex wrapper)
       const nameCell = row.querySelector('td');
       if (nameCell) {
         const avatarDiv = nameCell.querySelector('div > div');
@@ -414,7 +413,7 @@ export default function PreDeploymentChecklist({
         originalCell.replaceWith(companyCell, jobOrderCell);
       }
 
-      // c) Checkboxes
+      // c) Checkboxes and date input – read real values from the original row
       const originalRow = originalRows[index];
       if (originalRow) {
         const originalCheckboxes = originalRow.querySelectorAll<HTMLInputElement>(
@@ -429,7 +428,7 @@ export default function PreDeploymentChecklist({
           cb.replaceWith(document.createTextNode(isChecked ? 'Yes' : 'No'));
         });
 
-        // d) Deployment date
+        // Deployment date
         const originalDateInput = originalRow.querySelector<HTMLInputElement>(
           'input[type="date"]'
         );
@@ -443,30 +442,59 @@ export default function PreDeploymentChecklist({
       }
     });
 
-    // ----- 4. Add summary footer row -----
-    const tfoot = document.createElement('tfoot');
-    const footerRow = document.createElement('tr');
-    const footerCell = document.createElement('td');
-    footerCell.setAttribute('colspan', '14');
-    footerCell.style.fontWeight = 'bold';
-    footerCell.style.backgroundColor = '#f0f0f0';
-    footerCell.textContent =
-      `Total Applicants: ${totalApplicants}   Complete: ${completeCount}   Incomplete: ${incompleteCount}`;
-    footerRow.appendChild(footerCell);
-    tfoot.appendChild(footerRow);
-    tableClone.appendChild(tfoot);
+    // ----- 4. Build CSV content -----
+    const escapeCSV = (value: string): string => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
+      }
+      return value;
+    };
 
-    // ----- 5. Export -----
-    const tableHTML = tableClone.outerHTML;
-    const filename = `predeployment_table ${new Date().toISOString().slice(0, 19)}.xls`;
+    const csvRows: string[] = [];
+
+    // Headers
+    const headerCells: string[] = [];
+    tableClone.querySelectorAll('thead th').forEach(th => {
+      headerCells.push(escapeCSV(th.textContent?.trim() || ''));
+    });
+    csvRows.push(headerCells.join(','));
+
+    // Data rows
+    tableClone.querySelectorAll('tbody tr').forEach(row => {
+      if (row.querySelector('td[colspan]')) return; // skip empty state
+      const cells: string[] = [];
+      row.querySelectorAll('td').forEach(td => {
+        cells.push(escapeCSV(td.textContent?.trim() || ''));
+      });
+      csvRows.push(cells.join(','));
+    });
+
+    // ----- 5. Footer summary rows -----
+    const footerRow = (label: string, value: string | number) => {
+      const cells = Array(14).fill('');    // 14 columns (matches header count)
+      cells[12] = escapeCSV(label);        // column 13
+      cells[13] = escapeCSV(String(value));// column 14
+      return cells.join(',');
+    };
+
+    csvRows.push(''); // blank line for separation
+    csvRows.push(footerRow('Total Applicants:', totalApplicants));
+    csvRows.push(footerRow('Complete:', completeCount));
+    csvRows.push(footerRow('Incomplete:', incompleteCount));
+
+    const csvString = csvRows.join('\n');
+
+    // ----- 6. Download the CSV file -----
+    const dataType = 'text/csv';
+    const filename = `predeployment_table ${new Date().toISOString().slice(0, 19)}.csv`;
 
     if (navigator.msSaveOrOpenBlob) {
-      const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
+      const blob = new Blob(['\ufeff', csvString], { type: dataType });
       navigator.msSaveOrOpenBlob(blob, filename);
       return;
     }
 
-    const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
+    const blob = new Blob(['\ufeff', csvString], { type: dataType });
     const url = URL.createObjectURL(blob);
 
     const downloadLink = document.createElement('a');
@@ -522,8 +550,7 @@ export default function PreDeploymentChecklist({
               const complete = filteredApplicants.filter(
                 (app) => getPreDeploymentStatus(app) === 'Complete'
               ).length;
-              const incomplete = total - complete;
-              exportPredeploymentTableToExcel(total, complete, incomplete);
+              exportPredeploymentTableToCSV(total, complete, total - complete);
             }}
         >
           <Download className="w-5 h-5" />

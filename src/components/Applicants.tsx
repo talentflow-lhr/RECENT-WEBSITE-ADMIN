@@ -302,22 +302,21 @@ export default function Applicants({
     return "text-red-600 font-bold";
   };
   
-  function exportApplicantsTableToExcel() {
-    const dataType = 'application/vnd.ms-excel';
+  function exportApplicantsTableToCSV() {
     const originalTable = document.getElementById('applicants_table');
+    if (!originalTable) return;
 
-    // 1. Deep‑clone the table so we don't alter the visible DOM
+    // 1. Deep‑clone the table
     const tableClone = originalTable.cloneNode(true) as HTMLTableElement;
 
     // ----- 2. Split the header: "Company / Job Order" → "Company" + "Job Order" -----
     const headerRow = tableClone.querySelector('thead tr');
     if (headerRow) {
       const allTh = headerRow.querySelectorAll('th');
-      // The column to split is at index 1 (second column)
-      const oldTh = allTh[1];
+      const oldTh = allTh[1]; // second column
       if (oldTh) {
         const companyTh = document.createElement('th');
-        companyTh.className = oldTh.className;   // keep existing styling
+        companyTh.className = oldTh.className;
         companyTh.textContent = 'Company';
 
         const jobOrderTh = document.createElement('th');
@@ -328,7 +327,7 @@ export default function Applicants({
       }
     }
 
-    // 3. Process each body row
+    // ----- 3. Process body rows using the ORIGINAL table for live values -----
     const originalRows = originalTable.querySelectorAll('tbody tr');
     const clonedRows = tableClone.querySelectorAll('tbody tr');
 
@@ -343,13 +342,13 @@ export default function Applicants({
       // a) Name column: remove avatar div
       const nameCell = row.querySelector('td');
       if (nameCell) {
-        const avatarDiv = nameCell.querySelector('div div');
+        const avatarDiv = nameCell.querySelector('div div'); // inner avatar circle
         if (avatarDiv) avatarDiv.remove();
       }
 
-      // b) Company / Job Order column: split into two
-      const allCells = row.querySelectorAll('td');
-      if (allCells.length > 1) {
+      // b) Company / Job Order column: split second cell into two
+      const allCells = Array.from(row.querySelectorAll('td'));
+      if (allCells.length >= 2) {
         const originalCell = allCells[1];
         const paragraphs = originalCell.querySelectorAll('p');
         let companyText = '—';
@@ -377,7 +376,7 @@ export default function Applicants({
       if (originalRow) {
         const originalSelect = originalRow.querySelector('select');
         if (originalSelect) {
-          const currentStatus = originalSelect.value; // React‑maintained value
+          const currentStatus = originalSelect.value;
           const clonedSelect = row.querySelector('select');
           if (clonedSelect) {
             clonedSelect.replaceWith(document.createTextNode(currentStatus));
@@ -386,32 +385,57 @@ export default function Applicants({
       }
     });
 
-      // ----- 4. Get the final HTML from the cleaned clone -----
-      const tableHTML = tableClone.outerHTML;
-
-      // Determine the file name
-      const filename = `applicants_table ${new Date().toISOString().slice(0, 19)}.xls`;
-
-      // Legacy IE / old Edge path
-      if (navigator.msSaveOrOpenBlob) {
-        const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
-        navigator.msSaveOrOpenBlob(blob, filename);
-        return;
+    // ----- 4. Build CSV content -----
+    const escapeCSV = (value: string): string => {
+      if (value.includes(',') || value.includes('"') || value.includes('\n')) {
+        return `"${value.replace(/"/g, '""')}"`;
       }
+      return value;
+    };
 
-      // Modern browsers
-      const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
-      const url = URL.createObjectURL(blob);
+    const csvRows: string[] = [];
 
-      const downloadLink = document.createElement('a');
-      downloadLink.href = url;
-      downloadLink.download = filename;
-      document.body.appendChild(downloadLink);
-      downloadLink.click();
-      document.body.removeChild(downloadLink);
+    // Headers
+    const headerCells: string[] = [];
+    tableClone.querySelectorAll('thead th').forEach(th => {
+      headerCells.push(escapeCSV(th.textContent?.trim() || ''));
+    });
+    csvRows.push(headerCells.join(','));
 
-      setTimeout(() => URL.revokeObjectURL(url), 100);
+    // Data rows
+    tableClone.querySelectorAll('tbody tr').forEach(row => {
+      if (row.querySelector('td[colspan]')) return; // skip empty state
+      const cells: string[] = [];
+      row.querySelectorAll('td').forEach(td => {
+        cells.push(escapeCSV(td.textContent?.trim() || ''));
+      });
+      csvRows.push(cells.join(','));
+    });
+
+    const csvString = csvRows.join('\n');
+
+    // ----- 5. Download the CSV file -----
+    const dataType = 'text/csv';
+    const filename = `applicants_table ${new Date().toISOString().slice(0, 19)}.csv`;
+
+    if (navigator.msSaveOrOpenBlob) {
+      const blob = new Blob(['\ufeff', csvString], { type: dataType });
+      navigator.msSaveOrOpenBlob(blob, filename);
+      return;
     }
+
+    const blob = new Blob(['\ufeff', csvString], { type: dataType });
+    const url = URL.createObjectURL(blob);
+
+    const downloadLink = document.createElement('a');
+    downloadLink.href = url;
+    downloadLink.download = filename;
+    document.body.appendChild(downloadLink);
+    downloadLink.click();
+    document.body.removeChild(downloadLink);
+
+    setTimeout(() => URL.revokeObjectURL(url), 100);
+  }
 
   if (loading) {
     return (
@@ -542,7 +566,7 @@ export default function Applicants({
         </select>
         <button
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            onClick={exportApplicantsTableToExcel}
+            onClick={exportApplicantsTableToCSV}
         >
           <Download className="w-5 h-5" />
           <span>Export</span>
