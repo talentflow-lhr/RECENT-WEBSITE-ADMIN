@@ -340,7 +340,11 @@ export default function PreDeploymentChecklist({
     return matchesSearch && matchesJobOrder && matchesPosition;
   });
 
-  function exportPredeploymentTableToExcel() {
+  function exportPredeploymentTableToExcel(
+    totalApplicants: number,
+    completeCount: number,
+    incompleteCount: number
+  ) {
     const dataType = 'application/vnd.ms-excel';
     const originalTable = document.getElementById('predeployment_table');
     if (!originalTable) return;
@@ -374,23 +378,22 @@ export default function PreDeploymentChecklist({
       // Empty‑state row
       const emptyCell = row.querySelector('td[colspan]');
       if (emptyCell) {
-        emptyCell.setAttribute('colspan', '14');  // updated column count
+        emptyCell.setAttribute('colspan', '14');
         return;
       }
 
-      // a) Name column: remove the avatar <div> (first div inside the flex wrapper)
-      const nameCell = row.querySelector('td');               // first cell
+      // a) Name column: remove avatar div
+      const nameCell = row.querySelector('td');
       if (nameCell) {
-        const avatarDiv = nameCell.querySelector('div > div'); // inner avatar circle
+        const avatarDiv = nameCell.querySelector('div > div');
         if (avatarDiv) avatarDiv.remove();
       }
 
       // b) Company / Job Order: split the third cell (index 2) into two
-      const allCells = Array.from(row.querySelectorAll('td'));  // live after name removal
+      const allCells = Array.from(row.querySelectorAll('td'));
       if (allCells.length >= 3) {
-        const originalCell = allCells[2]; // the combined cell
+        const originalCell = allCells[2];
         const divs = originalCell.querySelectorAll('div');
-
         let companyText = '—';
         let jobOrderText = '—';
         if (divs.length >= 2) {
@@ -411,24 +414,28 @@ export default function PreDeploymentChecklist({
         originalCell.replaceWith(companyCell, jobOrderCell);
       }
 
-      // c) Checkboxes: replace each with "Yes"/"No" based on ORIGINAL checked state
+      // c) Checkboxes
       const originalRow = originalRows[index];
       if (originalRow) {
         const originalCheckboxes = originalRow.querySelectorAll<HTMLInputElement>(
           'input[type="checkbox"]'
         );
-        const clonedCheckboxes = row.querySelectorAll<HTMLInputElement>('input[type="checkbox"]');
+        const clonedCheckboxes = row.querySelectorAll<HTMLInputElement>(
+          'input[type="checkbox"]'
+        );
 
         clonedCheckboxes.forEach((cb, i) => {
           const isChecked = originalCheckboxes[i]?.checked ?? false;
           cb.replaceWith(document.createTextNode(isChecked ? 'Yes' : 'No'));
         });
 
-        // d) Deployment date: replace input with its current value
+        // d) Deployment date
         const originalDateInput = originalRow.querySelector<HTMLInputElement>(
           'input[type="date"]'
         );
-        const clonedDateInput = row.querySelector<HTMLInputElement>('input[type="date"]');
+        const clonedDateInput = row.querySelector<HTMLInputElement>(
+          'input[type="date"]'
+        );
         if (originalDateInput && clonedDateInput) {
           const dateValue = originalDateInput.value || '';
           clonedDateInput.replaceWith(document.createTextNode(dateValue));
@@ -436,7 +443,20 @@ export default function PreDeploymentChecklist({
       }
     });
 
-    // ----- 4. Export -----
+    // ----- 4. Add summary footer row -----
+    const tfoot = document.createElement('tfoot');
+    const footerRow = document.createElement('tr');
+    const footerCell = document.createElement('td');
+    footerCell.setAttribute('colspan', '14');
+    footerCell.style.fontWeight = 'bold';
+    footerCell.style.backgroundColor = '#f0f0f0';
+    footerCell.textContent =
+      `Total Applicants: ${totalApplicants}   Complete: ${completeCount}   Incomplete: ${incompleteCount}`;
+    footerRow.appendChild(footerCell);
+    tfoot.appendChild(footerRow);
+    tableClone.appendChild(tfoot);
+
+    // ----- 5. Export -----
     const tableHTML = tableClone.outerHTML;
     const filename = `predeployment_table ${new Date().toISOString().slice(0, 19)}.xls`;
 
@@ -497,7 +517,14 @@ export default function PreDeploymentChecklist({
         </div>
         <button
             className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
-            onClick={exportPredeploymentTableToExcel}
+            onClick={() => {
+              const total = filteredApplicants.length;
+              const complete = filteredApplicants.filter(
+                (app) => getPreDeploymentStatus(app) === 'Complete'
+              ).length;
+              const incomplete = total - complete;
+              exportPredeploymentTableToExcel(total, complete, incomplete);
+            }}
         >
           <Download className="w-5 h-5" />
           <span>Export</span>
