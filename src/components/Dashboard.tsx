@@ -301,7 +301,7 @@ export default function Dashboard({
       `,
       )
       .order("applied_date_id", { ascending: false })
-      .limit(10);
+      .limit(50);
 
     if (error) {
       console.error(error);
@@ -320,7 +320,15 @@ export default function Dashboard({
       applied_date: row.applied_date?.full_date || "",
     }));
 
-    setRecentApplicants(mapped);
+    // Keep only the first (most recent) occurrence of each applicant_id
+    const seen = new Set<number>();
+    const deduped = mapped.filter((row) => {
+      if (!row.applicant_id || seen.has(row.applicant_id)) return false;
+      seen.add(row.applicant_id);
+      return true;
+    });
+
+    setRecentApplicants(deduped.slice(0, 10));
   };
 
   const totalGender = genderData.male + genderData.female + genderData.other;
