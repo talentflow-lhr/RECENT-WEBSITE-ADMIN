@@ -418,53 +418,6 @@ export default function DashboardJobOrders({ darkMode = false }) {
     return segments[segmentBy] || [];
   };
 
-  // const applicantsPositionsData = [
-  //   { name: "Jan", applicants: 35, positions: 25 },
-  //   { name: "Feb", applicants: 18, positions: 22 },
-  //   { name: "Mar", applicants: 28, positions: 18 },
-  //   { name: "Apr", applicants: 15, positions: 20 },
-  //   { name: "May", applicants: 25, positions: 15 },
-  //   { name: "Jun", applicants: 22, positions: 25 },
-  //   { name: "Jul", applicants: 18, positions: 12 },
-  //   { name: "Aug", applicants: 28, positions: 20 },
-  // ];
-
-  // const companyData = [
-  //   { company: "Saudi 1", unfilled: "n/a", percentage: "80%" },
-  //   { company: "Qatar 1", unfilled: "n/a", percentage: "78%" },
-  //   { company: "Iraq 1", unfilled: "n/a", percentage: "75%" },
-  //   { company: "Saudi 2", unfilled: "11k", percentage: "62%" },
-  //   { company: "Company 3", unfilled: "10k", percentage: "61%" },
-  //   { company: "Company 4", unfilled: "n/a", percentage: "58%" },
-  //   { company: "Abu Dhabi", unfilled: "7k", percentage: "55%" },
-  //   { company: "Construction Co.", unfilled: "5k", percentage: "40%" },
-  //   { company: "Nursing Co.", unfilled: "3k", percentage: "25%" },
-  // ];
-
-  // const openPositionsData = [
-  //   { category: "Electronics", value: 45 },
-  //   { category: "Healthcare", value: 35 },
-  //   { category: "Prof Services", value: 30 },
-  //   { category: "Business", value: 50 },
-  // ];
-
-  // const ageRangeData = [
-  //   { range: "0-60 days", value: 40 },
-  //   { range: "61-90 days", value: 35 },
-  //   { range: "91-120 days", value: 25 },
-  //   { range: "121+ days", value: 45 },
-  // ];
-
-  // const applicantAgeData = [
-  //   { range: "18-24", value: 30 },
-  //   { range: "25-29", value: 35 },
-  //   { range: "30-34", value: 40 },
-  //   { range: "35-39", value: 45 },
-  //   { range: "40-44", value: 38 },
-  //   { range: "45-49", value: 32 },
-  //   { range: "50+", value: 50 },
-  // ];
-
   const projectOfficerPerformance = [
     {
       name: "MARTINEZ, Jenael S.",
@@ -587,107 +540,6 @@ export default function DashboardJobOrders({ darkMode = false }) {
       atRiskJobs: 6,
     },
   ];
-
-  // const applicantsHiredPerDayData = [
-  //   {
-  //     date: "Mar 1",
-  //     applicants: 12,
-  //     hired: 8,
-  //     applicantsPerDay: 12,
-  //     hiredPerDay: 8,
-  //   },
-  //   {
-  //     date: "Mar 2",
-  //     applicants: 15,
-  //     hired: 10,
-  //     applicantsPerDay: 13.5,
-  //     hiredPerDay: 9,
-  //   },
-  //   {
-  //     date: "Mar 3",
-  //     applicants: 8,
-  //     hired: 5,
-  //     applicantsPerDay: 11.7,
-  //     hiredPerDay: 7.7,
-  //   },
-  //   {
-  //     date: "Mar 4",
-  //     applicants: 18,
-  //     hired: 12,
-  //     applicantsPerDay: 13.3,
-  //     hiredPerDay: 8.8,
-  //   },
-  //   {
-  //     date: "Mar 5",
-  //     applicants: 22,
-  //     hired: 15,
-  //     applicantsPerDay: 15,
-  //     hiredPerDay: 10,
-  //   },
-  //   {
-  //     date: "Mar 6",
-  //     applicants: 10,
-  //     hired: 7,
-  //     applicantsPerDay: 14.2,
-  //     hiredPerDay: 9.5,
-  //   },
-  //   {
-  //     date: "Mar 7",
-  //     applicants: 14,
-  //     hired: 9,
-  //     applicantsPerDay: 14.1,
-  //     hiredPerDay: 9.4,
-  //   },
-  //   {
-  //     date: "Mar 8",
-  //     applicants: 20,
-  //     hired: 14,
-  //     applicantsPerDay: 14.9,
-  //     hiredPerDay: 10,
-  //   },
-  //   {
-  //     date: "Mar 9",
-  //     applicants: 16,
-  //     hired: 11,
-  //     applicantsPerDay: 15,
-  //     hiredPerDay: 10.1,
-  //   },
-  //   {
-  //     date: "Mar 10",
-  //     applicants: 12,
-  //     hired: 8,
-  //     applicantsPerDay: 14.7,
-  //     hiredPerDay: 9.9,
-  //   },
-  //   {
-  //     date: "Mar 11",
-  //     applicants: 18,
-  //     hired: 13,
-  //     applicantsPerDay: 15.1,
-  //     hiredPerDay: 10.2,
-  //   },
-  //   {
-  //     date: "Mar 12",
-  //     applicants: 24,
-  //     hired: 16,
-  //     applicantsPerDay: 15.8,
-  //     hiredPerDay: 10.7,
-  //   },
-  //   {
-  //     date: "Mar 13",
-  //     applicants: 11,
-  //     hired: 7,
-  //     applicantsPerDay: 15.4,
-  //     hiredPerDay: 10.3,
-  //   },
-  //   {
-  //     date: "Mar 14",
-  //     applicants: 19,
-  //     hired: 13,
-  //     applicantsPerDay: 15.6,
-  //     hiredPerDay: 10.5,
-  //   },
-  // ];
 
   const topPerformers = [...projectOfficerPerformance]
     .sort((a, b) => b.completionRate - a.completionRate)
@@ -1631,7 +1483,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                       {job.project_officer}
                     </td>
                     <td
-                      className={`px-3 py-3 text-center text-sm font-bold ${job.daysOpen > 130 ? (darkMode ? "text-red-400" : "text-red-600") : job.daysOpen > 115 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
+                      className={`px-3 py-3 text-center text-sm font-bold ${job.days_open  > 130 ? (darkMode ? "text-red-400" : "text-red-600") : job.days_open > 115 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
                       {job.days_open}
                     </td>
@@ -1646,7 +1498,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                       {job.target_applicants}
                     </td>
                     <td
-                      className={`px-3 py-3 text-center text-sm font-bold ${job.completionRate < 20 ? (darkMode ? "text-red-400" : "text-red-600") : job.completionRate < 30 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
+                      className={`px-3 py-3 text-center text-sm font-bold ${job.completion_rate < 20 ? (darkMode ? "text-red-400" : "text-red-600") : job.completion_rate < 30 ? (darkMode ? "text-orange-400" : "text-orange-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
                       {job.completion_rate}%
                     </td>
