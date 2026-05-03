@@ -301,6 +301,117 @@ export default function Applicants({
     if (score >= 60) return "text-yellow-600 font-bold";
     return "text-red-600 font-bold";
   };
+  
+  function exportApplicantsTableToExcel() {
+    const dataType = 'application/vnd.ms-excel';
+    const originalTable = document.getElementById('applicants_table');
+
+    // 1. Deep‑clone the table so we don't alter the visible DOM
+    const tableClone = originalTable.cloneNode(true) as HTMLTableElement;
+
+    // ----- 2. Split the header: "Company / Job Order" → "Company" + "Job Order" -----
+    const headerRow = tableClone.querySelector('thead tr');
+    if (headerRow) {
+      const allTh = headerRow.querySelectorAll('th');
+      // The column to split is at index 1 (second column)
+      const oldTh = allTh[1];
+      if (oldTh) {
+        const companyTh = document.createElement('th');
+        companyTh.className = oldTh.className;   // keep existing styling
+        companyTh.textContent = 'Company';
+
+        const jobOrderTh = document.createElement('th');
+        jobOrderTh.className = oldTh.className;
+        jobOrderTh.textContent = 'Job Order';
+
+        oldTh.replaceWith(companyTh, jobOrderTh);
+      }
+    }
+
+    // 3. Process each body row
+    const originalRows = originalTable.querySelectorAll('tbody tr');
+    const clonedRows = tableClone.querySelectorAll('tbody tr');
+
+    clonedRows.forEach((row, index) => {
+      // Empty‑state row
+      const emptyCell = row.querySelector('td[colspan]');
+      if (emptyCell) {
+        emptyCell.setAttribute('colspan', '10');
+        return;
+      }
+
+      // a) Name column: remove avatar div
+      const nameCell = row.querySelector('td');
+      if (nameCell) {
+        const avatarDiv = nameCell.querySelector('div div');
+        if (avatarDiv) avatarDiv.remove();
+      }
+
+      // b) Company / Job Order column: split into two
+      const allCells = row.querySelectorAll('td');
+      if (allCells.length > 1) {
+        const originalCell = allCells[1];
+        const paragraphs = originalCell.querySelectorAll('p');
+        let companyText = '—';
+        let jobOrderText = '—';
+        if (paragraphs.length >= 2) {
+          companyText = paragraphs[0].textContent?.trim() || '—';
+          jobOrderText = paragraphs[1].textContent?.trim() || '—';
+        } else if (paragraphs.length === 1) {
+          companyText = paragraphs[0].textContent?.trim() || '—';
+        }
+
+        const companyCell = document.createElement('td');
+        companyCell.className = originalCell.className;
+        companyCell.textContent = companyText;
+
+        const jobOrderCell = document.createElement('td');
+        jobOrderCell.className = originalCell.className;
+        jobOrderCell.textContent = jobOrderText;
+
+        originalCell.replaceWith(companyCell, jobOrderCell);
+      }
+
+      // c) Status column: use the ORIGINAL row's select value
+      const originalRow = originalRows[index];
+      if (originalRow) {
+        const originalSelect = originalRow.querySelector('select');
+        if (originalSelect) {
+          const currentStatus = originalSelect.value; // React‑maintained value
+          const clonedSelect = row.querySelector('select');
+          if (clonedSelect) {
+            clonedSelect.replaceWith(document.createTextNode(currentStatus));
+          }
+        }
+      }
+    });
+
+      // ----- 4. Get the final HTML from the cleaned clone -----
+      const tableHTML = tableClone.outerHTML;
+
+      // Determine the file name
+      const filename = `applicants_table ${new Date().toISOString().slice(0, 19)}.xls`;
+
+      // Legacy IE / old Edge path
+      if (navigator.msSaveOrOpenBlob) {
+        const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
+        navigator.msSaveOrOpenBlob(blob, filename);
+        return;
+      }
+
+      // Modern browsers
+      const blob = new Blob(['\ufeff', tableHTML], { type: dataType });
+      const url = URL.createObjectURL(blob);
+
+      const downloadLink = document.createElement('a');
+      downloadLink.href = url;
+      downloadLink.download = filename;
+      document.body.appendChild(downloadLink);
+      downloadLink.click();
+      document.body.removeChild(downloadLink);
+
+      setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
 
   if (loading) {
     return (
@@ -429,7 +540,10 @@ export default function Applicants({
             Job Fit Score (Low to High)
           </option>
         </select>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+        <button
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            onClick={exportApplicantsTableToExcel}
+        >
           <Download className="w-5 h-5" />
           <span>Export</span>
         </button>
@@ -440,7 +554,7 @@ export default function Applicants({
         className={`rounded-xl shadow-md overflow-hidden ${darkMode ? "bg-gray-800" : "bg-white"}`}
       >
         <div className="overflow-x-auto">
-          <table className="w-full">
+          <table className="w-full" id="applicants_table">
             <thead className="bg-green-600">
               <tr>
                 {[
