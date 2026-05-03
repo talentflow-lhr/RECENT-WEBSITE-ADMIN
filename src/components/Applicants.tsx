@@ -8,6 +8,8 @@ import {
   Award,
   BookOpen,
   Send,
+  FileText,
+  Eye,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -24,16 +26,27 @@ interface Applicant {
   applied_date: string;
   position: string;
   jo_id: number;
+  company_name: string;
   interviewer: string;
   meeting_link: string;
+  interview_date: string;
+  salary_range: string;
+  resume_url: string;
   declined_reason: string;
   rejected_reason: string;
   skills: string[];
   certifications: string[];
   experience: string[];
+  salary_offer: string;
 }
 
-export default function Applicants({ darkMode }: { darkMode: boolean }) {
+export default function Applicants({
+  darkMode,
+  hasPermission,
+}: {
+  darkMode: boolean;
+  hasPermission: boolean;
+}) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [selectedApplicant, setSelectedApplicant] = useState<Applicant | null>(
@@ -48,9 +61,11 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editForm, setEditForm] = useState({
     interviewer: "",
+    interviewDate: "",
     meetingLink: "",
     declinedReason: "",
     rejectedReason: "",
+    salaryOffer: "",
   });
 
   const statuses = [
@@ -81,6 +96,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         application_meeting_link,
         application_decline_reason,
         application_rejected_reason,
+        application_interview_schedule,
+        application_salary_offer,
         t_applicant(
           applicant_id,
           app_first_name,
@@ -90,11 +107,17 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         ),
         t_job_positions(
           job_title,
-          jo_id
+          jo_id,
+          job_salary_range,
+          t_job_orders(
+            jo_id,
+            t_companies(company_name)
+          )
         ),
         t_resume(
           resume_id,
           t_resume_skills(rs_skill_name, rs_proficiency_level),
+          res_pdf_link,
           t_certificate_training(cert_certificate_title),
           t_work_experience(exp_position, exp_company, exp_start_date, exp_end_date)
         ),
@@ -121,10 +144,16 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       applied_date: row.applied_date?.full_date || "",
       position: row.t_job_positions?.job_title || "",
       jo_id: row.t_job_positions?.jo_id || 0,
+      company_name:
+        row.t_job_positions?.t_job_orders?.t_companies?.company_name || "",
       interviewer: row.application_interviewer || "",
       meeting_link: row.application_meeting_link || "",
       declined_reason: row.application_decline_reason || "",
       rejected_reason: row.application_rejected_reason || "",
+      interview_date: row.application_interview_schedule || "",
+      salary_range: row.t_job_positions?.job_salary_range || "",
+      resume_url: row.t_resume?.res_pdf_link || "",
+      salary_offer: row.application_salary_offer || "",
       skills: (row.t_resume?.t_resume_skills || []).map(
         (s: any) => s.rs_skill_name,
       ),
@@ -179,6 +208,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
         application_meeting_link: editForm.meetingLink,
         application_decline_reason: editForm.declinedReason,
         application_rejected_reason: editForm.rejectedReason,
+        application_interview_schedule: editForm.interviewDate || null,
+        application_salary_offer: editForm.salaryOffer,
       })
       .eq("application_id", selectedApplicant.application_id);
 
@@ -187,10 +218,12 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       return;
     }
 
-    const updated = {
+    const updated: Applicant = {
       ...selectedApplicant,
       interviewer: editForm.interviewer,
       meeting_link: editForm.meetingLink,
+      interview_date: editForm.interviewDate,
+      salary_offer: editForm.salaryOffer,
       declined_reason: editForm.declinedReason,
       rejected_reason: editForm.rejectedReason,
     };
@@ -204,6 +237,9 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
     setIsEditing(false);
   };
 
+  const formatJoId = (joId: number) =>
+    joId ? `JO-${String(joId).padStart(5, "0")}` : "—";
+
   const uniquePositions = Array.from(
     new Set(applicants.map((a) => a.position).filter(Boolean)),
   ).sort();
@@ -214,7 +250,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
       const matchesSearch =
         fullName.includes(searchTerm.toLowerCase()) ||
         a.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        String(a.jo_id).includes(searchTerm);
+        String(a.jo_id).includes(searchTerm) ||
+        a.company_name.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesFilter =
         filterStatus === "All" || a.application_current_status === filterStatus;
       const matchesPosition =
@@ -346,7 +383,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="Search by name or position..."
+            placeholder="Search by name, position, or company..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-green-600 ${
@@ -408,12 +445,14 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
               <tr>
                 {[
                   "Name",
-                  "Job Order ID",
+                  "Company / Job Order",
                   "Position Applied",
                   "Resume Score",
                   "Job Fit Score",
                   "Status",
                   "Applied Date",
+                  "Interviewer",
+                  "Salary Offer",
                 ].map((h) => (
                   <th
                     key={h}
@@ -430,7 +469,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
               {filteredApplicants.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={7}
+                    colSpan={9}
                     className={`px-6 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}
                   >
                     No applicants found.
@@ -446,12 +485,15 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                       setIsEditing(false);
                       setEditForm({
                         interviewer: applicant.interviewer || "",
+                        interviewDate: applicant.interview_date || "",
+                        salaryOffer: applicant.salary_offer || "",
                         meetingLink: applicant.meeting_link || "",
                         declinedReason: applicant.declined_reason || "",
                         rejectedReason: applicant.rejected_reason || "",
                       });
                     }}
                   >
+                    {/* Name */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center">
                         <div
@@ -469,16 +511,29 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                         </div>
                       </div>
                     </td>
-                    <td
-                      className={`px-6 py-4 whitespace-nowrap text-sm font-mono ${darkMode ? "text-gray-300" : "text-gray-900"}`}
-                    >
-                      {applicant.jo_id || "—"}
+
+                    {/* Company / Job Order — matches the screenshot style */}
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p
+                        className={`text-sm font-semibold ${darkMode ? "text-white" : "text-gray-900"}`}
+                      >
+                        {applicant.company_name || "—"}
+                      </p>
+                      <p
+                        className={`text-xs mt-0.5 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                      >
+                        {formatJoId(applicant.jo_id)}
+                      </p>
                     </td>
+
+                    {/* Position */}
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
                     >
                       {applicant.position}
                     </td>
+
+                    {/* Resume Score */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`text-sm ${getScoreColor(applicant.resume_score)}`}
@@ -486,6 +541,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                         {applicant.resume_score?.toFixed(1)}%
                       </span>
                     </td>
+
+                    {/* Job Fit Score */}
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span
                         className={`text-sm ${getScoreColor(applicant.job_fit_score)}`}
@@ -493,6 +550,8 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                         {applicant.job_fit_score?.toFixed(1)}%
                       </span>
                     </td>
+
+                    {/* Status */}
                     <td
                       className="px-6 py-4 whitespace-nowrap"
                       onClick={(e) => e.stopPropagation()}
@@ -506,6 +565,7 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                           )
                         }
                         className={`px-3 py-1 text-xs font-semibold rounded-full border-0 focus:outline-none focus:ring-2 focus:ring-green-500 ${getStatusColor(applicant.application_current_status)}`}
+                        disabled={!hasPermission}
                       >
                         {statuses.map((s) => (
                           <option key={s} value={s}>
@@ -514,10 +574,30 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                         ))}
                       </select>
                     </td>
+
+                    {/* Applied Date */}
                     <td
                       className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}
                     >
                       {applicant.applied_date}
+                    </td>
+
+                    {/* Interviewer */}
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                    >
+                      {applicant.interviewer || (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </td>
+
+                    {/* Salary Offer */}
+                    <td
+                      className={`px-6 py-4 whitespace-nowrap text-sm ${darkMode ? "text-gray-300" : "text-gray-900"}`}
+                    >
+                      {applicant.salary_offer || (
+                        <span className="text-gray-400">—</span>
+                      )}
                     </td>
                   </tr>
                 ))
@@ -584,8 +664,12 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                 {[
                   { label: "Email", value: selectedApplicant.app_email },
                   {
+                    label: "Company",
+                    value: selectedApplicant.company_name || "—",
+                  },
+                  {
                     label: "Job Order ID",
-                    value: selectedApplicant.jo_id || "—",
+                    value: formatJoId(selectedApplicant.jo_id),
                   },
                   {
                     label: "Resume Score",
@@ -610,6 +694,18 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                   {
                     label: "Meeting Link",
                     value: selectedApplicant.meeting_link || "—",
+                  },
+                  {
+                    label: "Salary Range",
+                    value: selectedApplicant.salary_range || "—",
+                  },
+                  {
+                    label: "Salary Offer",
+                    value: selectedApplicant.salary_offer || "—",
+                  },
+                  {
+                    label: "Interview Date",
+                    value: selectedApplicant.interview_date || "—",
                   },
                 ].map(({ label, value }) => (
                   <div key={label}>
@@ -768,11 +864,70 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                   </p>
                 )}
               </div>
+
+              {/* Resume View/Download */}
+              <div
+                className={`border-l-4 border-blue-600 rounded-lg p-4 ${darkMode ? "bg-blue-900" : "bg-blue-50"}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <h3
+                      className={`font-bold ${darkMode ? "text-blue-200" : "text-blue-900"}`}
+                    >
+                      Resume
+                    </h3>
+                  </div>
+                  <div className="flex space-x-2">
+                    <a
+                      href={selectedApplicant.resume_url || "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        selectedApplicant.resume_url
+                          ? "bg-blue-600 hover:bg-blue-700 text-white"
+                          : "bg-gray-300 text-gray-500 pointer-events-none cursor-not-allowed"
+                      }`}
+                    >
+                      <Eye className="w-4 h-4" />
+                      <span>View</span>
+                    </a>
+                    <a
+                      href={selectedApplicant.resume_url || "#"}
+                      download={`${selectedApplicant.app_first_name}-${selectedApplicant.app_last_name}-Resume.pdf`}
+                      className={`flex items-center space-x-1 px-3 py-2 rounded-lg transition-colors text-sm ${
+                        selectedApplicant.resume_url
+                          ? "bg-green-600 hover:bg-green-700 text-white"
+                          : "bg-gray-300 text-gray-500 pointer-events-none cursor-not-allowed"
+                      }`}
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>Download PDF</span>
+                    </a>
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Editable Fields */}
             {isEditing && (
               <div className="px-6 pb-6 space-y-4">
+                <div>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Salary Offer
+                  </p>
+                  <input
+                    type="text"
+                    value={editForm.salaryOffer}
+                    onChange={(e) =>
+                      setEditForm({ ...editForm, salaryOffer: e.target.value })
+                    }
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
+                    placeholder="e.g. ₱25,000/month"
+                  />
+                </div>
                 <div>
                   <p
                     className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
@@ -787,6 +942,24 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                     }
                     className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                     placeholder="Enter interviewer name"
+                  />
+                </div>
+                <div>
+                  <p
+                    className={`text-sm font-medium mb-2 ${darkMode ? "text-gray-400" : "text-gray-500"}`}
+                  >
+                    Interview Date
+                  </p>
+                  <input
+                    type="date"
+                    value={editForm.interviewDate}
+                    onChange={(e) =>
+                      setEditForm({
+                        ...editForm,
+                        interviewDate: e.target.value,
+                      })
+                    }
+                    className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                   />
                 </div>
                 <div>
@@ -888,14 +1061,14 @@ export default function Applicants({ darkMode }: { darkMode: boolean }) {
                   >
                     Save Changes
                   </button>
-                ) : (
+                ) : hasPermission ? (
                   <button
                     onClick={() => setIsEditing(true)}
                     className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                   >
                     Edit Application
                   </button>
-                )}
+                ) : null}
               </div>
             </div>
           </div>

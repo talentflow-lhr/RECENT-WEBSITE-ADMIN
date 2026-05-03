@@ -42,8 +42,10 @@ interface FormData {
 
 export default function Companies({
   darkMode = false,
+  hasPermission,
 }: {
   darkMode?: boolean;
+  hasPermission: boolean;
 }) {
   const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState(true);
@@ -255,7 +257,6 @@ export default function Companies({
   };
 
   const getStatusLabel = (is_active: boolean | null, is_posted: boolean) => {
-    if (!is_posted) return "Draft";
     if (is_active === null) return "On Hold";
     if (is_active) return "Active";
     return "Closed";
@@ -269,7 +270,6 @@ export default function Companies({
   };
 
   const getSelectValue = (is_active: boolean | null, is_posted: boolean) => {
-    if (!is_posted) return "draft";
     if (is_active === null) return "onhold";
     if (is_active) return "active";
     return "closed";
@@ -291,10 +291,18 @@ export default function Companies({
   );
 
   const modalForm = (onSubmit: (e: React.FormEvent) => void, title: string) => (
-    <div className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4 ${darkMode ? "bg-black/40" : "bg-white/30"}`}>
-      <div className={`rounded-xl shadow-xl max-w-md w-full p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}>
+    <div
+      className={`fixed inset-0 backdrop-blur-sm flex items-center justify-center z-50 p-4 ${darkMode ? "bg-black/40" : "bg-white/30"}`}
+    >
+      <div
+        className={`rounded-xl shadow-xl max-w-md w-full p-6 ${darkMode ? "bg-gray-800" : "bg-white"}`}
+      >
         <div className="flex items-center justify-between mb-4">
-          <h2 className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}>{title}</h2>
+          <h2
+            className={`text-2xl font-bold ${darkMode ? "text-white" : "text-gray-900"}`}
+          >
+            {title}
+          </h2>
           <button
             onClick={() => {
               setShowAddModal(false);
@@ -336,7 +344,9 @@ export default function Companies({
             },
           ].map(({ label, key, placeholder, required }) => (
             <div key={key}>
-              <label className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
+              <label
+                className={`block text-sm font-medium mb-1 ${darkMode ? "text-gray-300" : "text-gray-700"}`}
+              >
                 {label} {required && <span className="text-red-500">*</span>}
               </label>
               <input
@@ -457,6 +467,7 @@ export default function Companies({
             setShowAddModal(true);
           }}
           className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+          disabled={!hasPermission}
         >
           <Plus className="w-5 h-5" />
           <span>Add Company</span>
@@ -531,15 +542,17 @@ export default function Companies({
                     className="flex space-x-1"
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <button
+                    <button // edit button
                       onClick={() => openEdit(company)}
                       className={`p-2 rounded-lg ${darkMode ? "text-blue-400 hover:bg-gray-700" : "text-blue-600 hover:bg-blue-50"}`}
+                      disabled={!hasPermission}
                     >
                       <Edit className="w-4 h-4" />
                     </button>
-                    <button
+                    <button // delete button
                       onClick={() => handleDelete(company.company_id)}
                       className={`p-2 rounded-lg ${darkMode ? "text-red-400 hover:bg-gray-700" : "text-red-600 hover:bg-red-50"}`}
+                      disabled={!hasPermission}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -579,7 +592,7 @@ export default function Companies({
                                   <p
                                     className={`font-semibold text-sm ${darkMode ? "text-white" : "text-gray-900"}`}
                                   >
-                                    Job Order #{jo.jo_id}
+                                    {`JO-${String(jo.jo_id).padStart(5, "0")}`}
                                   </p>
                                   {/* Status Dropdown */}
                                   <div
@@ -612,12 +625,7 @@ export default function Companies({
                                               null,
                                               true,
                                             );
-                                          else if (val === "draft")
-                                            handleStatusUpdate(
-                                              jo.jo_id,
-                                              false,
-                                              false,
-                                            );
+
                                           setEditingStatus(null);
                                         }}
                                         onBlur={() => setEditingStatus(null)}
@@ -627,7 +635,6 @@ export default function Companies({
                                         <option value="active">Active</option>
                                         <option value="closed">Closed</option>
                                         <option value="onhold">On Hold</option>
-                                        <option value="draft">Draft</option>
                                       </select>
                                     ) : (
                                       <button
