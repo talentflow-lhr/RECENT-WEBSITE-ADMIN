@@ -83,6 +83,21 @@ interface ApplicantsHiredPerDay {
   hiredPerDay: number;
 }
 
+interface MainAnalyticsRow {
+  period: string;
+  open_positions: number;
+  closed_positions: number;
+  hired_applicants: number;
+}
+
+interface BreakdownRow {
+  segment_name:     string;
+  closed_positions: number;
+  hired_applicants: number;
+  open_positions:   number;
+  success_rate:     number;
+}
+
 export default function DashboardJobOrders({ darkMode = false }) {
   const [timePeriod, setTimePeriod] = useState("month");
   const [segmentBy, setSegmentBy] = useState("all");
@@ -104,6 +119,21 @@ export default function DashboardJobOrders({ darkMode = false }) {
   const [companyData, setCompanyData] = useState<CompanyRow[]>([]);
   const [applicantsHiredPerDayData, setApplicantsHiredPerDayData] = useState<ApplicantsHiredPerDay[]>([]);
 
+  const [analyticsData, setAnalyticsData] = useState<MainAnalyticsRow[]>([]);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  const [analyticsFilters, setAnalyticsFilters] = useState({
+    company_id:  null as number | null,
+    category:    null as string | null,
+    country:     null as string | null,
+    employee_id: null as number | null,
+  });
+  const [companyOptions, setCompanyOptions] = useState<{ id: number; name: string }[]>([]);
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([]);
+  const [countryOptions, setCountryOptions] = useState<string[]>([]);
+  const [employeeOptions, setEmployeeOptions] = useState<{ id: number; name: string }[]>([]);
+  const [breakdownData, setBreakdownData] = useState<BreakdownRow[]>([]);
+  const [breakdownLoading, setBreakdownLoading] = useState(false);
+
 
   useEffect(() => {
     fetchStats();
@@ -114,8 +144,24 @@ export default function DashboardJobOrders({ darkMode = false }) {
     fetchApplicantsPositionsData();
     fetchCompanyData();
     fetchApplicantsHiredPerDayData();
-
+    fetchFilterOptions();    // new
+    fetchMainAnalytics();    // new
   }, []);
+
+  // Re-fetch main chart when period or filters change
+  useEffect(() => {
+    fetchMainAnalytics();
+  }, [timePeriod, analyticsFilters]);
+
+  // Re-fetch breakdown when segment or filters change
+  useEffect(() => {
+    if (segmentBy !== "all") fetchBreakdown();
+  }, [segmentBy, analyticsFilters]);
+
+  // Re-fetch breakdown when segmentBy changes away from "all"
+  useEffect(() => {
+    if (segmentBy !== "all") fetchBreakdown();
+  }, [segmentBy]);
 
   const fetchStats = async () => {
     const [
@@ -218,205 +264,22 @@ export default function DashboardJobOrders({ darkMode = false }) {
     },
   ];
 
-  // Hardcoded chart data
-  const getAnalyticsData = () => {
-    switch (timePeriod) {
-      case "month":
-        return [
-          { period: "Jan", closed: 45, hired: 38, open: 25 },
-          { period: "Feb", closed: 52, hired: 44, open: 22 },
-          { period: "Mar", closed: 48, hired: 40, open: 28 },
-          { period: "Apr", closed: 55, hired: 47, open: 20 },
-          { period: "May", closed: 60, hired: 52, open: 18 },
-          { period: "Jun", closed: 58, hired: 50, open: 24 },
-          { period: "Jul", closed: 62, hired: 54, open: 19 },
-          { period: "Aug", closed: 65, hired: 58, open: 17 },
-          { period: "Sep", closed: 59, hired: 51, open: 23 },
-          { period: "Oct", closed: 68, hired: 60, open: 15 },
-          { period: "Nov", closed: 72, hired: 64, open: 14 },
-          { period: "Dec", closed: 70, hired: 62, open: 16 },
-        ];
-      case "quarter":
-        return [
-          { period: "Q1 2025", closed: 145, hired: 122, open: 75 },
-          { period: "Q2 2025", closed: 173, hired: 149, open: 62 },
-          { period: "Q3 2025", closed: 186, hired: 163, open: 59 },
-          { period: "Q4 2025", closed: 210, hired: 186, open: 45 },
-        ];
-      case "ytd":
-        return [
-          { period: "Jan-Mar", closed: 145, hired: 122, open: 75 },
-          { period: "Jan-Jun", closed: 318, hired: 271, open: 137 },
-          { period: "Jan-Sep", closed: 504, hired: 434, open: 196 },
-          { period: "Jan-Dec", closed: 714, hired: 620, open: 241 },
-        ];
-      case "year":
-        return [
-          { period: "2021", closed: 420, hired: 358, open: 180 },
-          { period: "2022", closed: 495, hired: 425, open: 165 },
-          { period: "2023", closed: 580, hired: 502, open: 148 },
-          { period: "2024", closed: 658, hired: 572, open: 132 },
-          { period: "2025", closed: 714, hired: 620, open: 124 },
-        ];
-      default:
-        return [];
-    }
-  };
-
   const segmentOptions: Record<string, string[]> = {
-    all: ["All"],
-    pm: [
-      "All",
-      "John Smith",
-      "Maria Garcia",
-      "Ahmed Hassan",
-      "Lisa Chen",
-      "Robert Johnson",
-    ],
-    company: [
-      "All",
-      "Saudi 1",
-      "Qatar 1",
-      "Iraq 1",
-      "Abu Dhabi",
-      "Construction Co.",
-      "Nursing Co.",
-    ],
-    country: [
-      "All",
-      "Saudi Arabia",
-      "Qatar",
-      "Iraq",
-      "UAE",
-      "Kuwait",
-      "Bahrain",
-    ],
-    skill: [
-      "All",
-      "Construction",
-      "Healthcare",
-      "Manufacturing",
-      "Hospitality",
-      "IT Services",
-      "Retail",
-    ],
+    all:     ["All"],
+    pm:      ["All", ...employeeOptions.map(e => e.name)],
+    company: ["All", ...companyOptions.map(c => c.name)],
+    country: ["All", ...countryOptions],
+    skill:   ["All", ...categoryOptions],
   };
 
-  const getSegmentedData = () => {
-    if (segmentBy === "all") return [];
-    const segments: Record<string, any[]> = {
-      pm: [
-        { name: "John Smith", closed: 145, hired: 125, open: 42, rate: "89%" },
-        {
-          name: "Maria Garcia",
-          closed: 138,
-          hired: 118,
-          open: 38,
-          rate: "87%",
-        },
-        {
-          name: "Ahmed Hassan",
-          closed: 152,
-          hired: 132,
-          open: 35,
-          rate: "91%",
-        },
-        { name: "Lisa Chen", closed: 128, hired: 110, open: 45, rate: "88%" },
-        {
-          name: "Robert Johnson",
-          closed: 151,
-          hired: 135,
-          open: 40,
-          rate: "92%",
-        },
-      ],
-      company: [
-        {
-          name: "Saudi 1",
-          closed: 156,
-          hired: 142,
-          open: 48,
-          rate: "92%",
-          projectOfficer: "MARTINEZ, Jenael S.",
-        },
-        {
-          name: "Qatar 1",
-          closed: 148,
-          hired: 128,
-          open: 52,
-          rate: "88%",
-          projectOfficer: "PANASANTOS, Emelie Jane",
-        },
-        {
-          name: "Iraq 1",
-          closed: 132,
-          hired: 115,
-          open: 45,
-          rate: "90%",
-          projectOfficer: "MANING, M. M.",
-        },
-        {
-          name: "Abu Dhabi",
-          closed: 125,
-          hired: 108,
-          open: 38,
-          rate: "89%",
-          projectOfficer: "SERVANO, Faith Risen",
-        },
-        {
-          name: "Construction Co.",
-          closed: 98,
-          hired: 85,
-          open: 42,
-          rate: "87%",
-          projectOfficer: "ILLY, Leny",
-        },
-        {
-          name: "Nursing Co.",
-          closed: 55,
-          hired: 42,
-          open: 16,
-          rate: "85%",
-          projectOfficer: "BALUYOT, Myson F.",
-        },
-      ],
-      country: [
-        {
-          name: "Saudi Arabia",
-          closed: 245,
-          hired: 215,
-          open: 72,
-          rate: "91%",
-        },
-        { name: "Qatar", closed: 188, hired: 162, open: 58, rate: "89%" },
-        { name: "UAE", closed: 165, hired: 142, open: 48, rate: "88%" },
-        { name: "Iraq", closed: 78, hired: 68, open: 28, rate: "90%" },
-        { name: "Kuwait", closed: 28, hired: 23, open: 12, rate: "85%" },
-        { name: "Bahrain", closed: 10, hired: 10, open: 5, rate: "87%" },
-      ],
-      skill: [
-        {
-          name: "Construction",
-          closed: 215,
-          hired: 188,
-          open: 65,
-          rate: "90%",
-        },
-        { name: "Healthcare", closed: 182, hired: 158, open: 52, rate: "88%" },
-        {
-          name: "Manufacturing",
-          closed: 145,
-          hired: 125,
-          open: 48,
-          rate: "89%",
-        },
-        { name: "Hospitality", closed: 98, hired: 82, open: 38, rate: "86%" },
-        { name: "IT Services", closed: 52, hired: 45, open: 18, rate: "92%" },
-        { name: "Retail", closed: 22, hired: 22, open: 8, rate: "84%" },
-      ],
-    };
-    return segments[segmentBy] || [];
-  };
+  const getSegmentedData = () => breakdownData.map(row => ({
+    name:            row.segment_name,
+    closed:          row.closed_positions,
+    hired:           row.hired_applicants,
+    open:            row.open_positions,
+    rate:            `${row.success_rate}%`,
+    projectOfficer:  undefined,
+  }));
 
   const projectOfficerPerformance = [
     {
@@ -548,8 +411,6 @@ export default function DashboardJobOrders({ darkMode = false }) {
     .sort((a, b) => a.completionRate - b.completionRate)
     .slice(0, 10);
 
-  const analyticsData = getAnalyticsData();
-
   const fetchOpenPositionsData = async () => {
     const { data, error } = await supabase.rpc("get_open_positions_by_category");
     if (error || !data) return;
@@ -589,6 +450,78 @@ export default function DashboardJobOrders({ darkMode = false }) {
     setApplicantsHiredPerDayData(data || []);
   };
 
+  const fetchFilterOptions = async () => {
+    const [
+      { data: companies },
+      { data: categories },
+      { data: countries },
+      { data: employees },
+    ] = await Promise.all([
+      supabase.from("t_companies").select("company_id, company_name").order("company_name"),
+      supabase.from("t_job_positions").select("job_category").not("job_category", "is", null),
+      supabase.from("t_job_orders").select("jo_country").not("jo_country", "is", null),
+      supabase
+        .from("t_employee")
+        .select("employee_id, employee_first_name, employee_last_name")
+        .eq("employee_is_active", true),
+    ]);
+
+    if (companies) {
+      setCompanyOptions(companies.map(c => ({ id: c.company_id, name: c.company_name ?? "" })));
+    }
+    if (categories) {
+      const unique = Array.from(new Set(categories.map(c => c.job_category).filter(Boolean))) as string[];
+      setCategoryOptions(unique.sort());
+    }
+    if (countries) {
+      const unique = Array.from(new Set(countries.map(c => c.jo_country).filter(Boolean))) as string[];
+      setCountryOptions(unique.sort());
+    }
+    if (employees) {
+      setEmployeeOptions(
+        employees.map(e => ({
+          id: e.employee_id,
+          name: `${e.employee_last_name ?? ""}, ${e.employee_first_name ?? ""}`.trim(),
+        }))
+      );
+    }
+  };
+
+  const fetchMainAnalytics = async () => {
+    setAnalyticsLoading(true);
+    const { data, error } = await supabase.rpc("get_rolling_jo_counts", {
+      p_period:      timePeriod,
+      p_company_id:  analyticsFilters.company_id,
+      p_category:    analyticsFilters.category,
+      p_country:     analyticsFilters.country,
+      p_employee_id: analyticsFilters.employee_id,
+    });
+    if (error) {
+      console.error("get_rolling_jo_counts error:", JSON.stringify(error, null, 2));
+    } else {
+      setAnalyticsData(data ?? []);
+    }
+    setAnalyticsLoading(false);
+  };
+
+  const fetchBreakdown = async () => {
+    if (segmentBy === "all") return;
+    setBreakdownLoading(true);
+    const { data, error } = await supabase.rpc("get_analytics_breakdown", {
+      p_segment_by:  segmentBy,
+      p_company_id:  analyticsFilters.company_id,
+      p_category:    analyticsFilters.category,
+      p_country:     analyticsFilters.country,
+      p_employee_id: analyticsFilters.employee_id,
+    });
+    if (error) {
+      console.error("get_analytics_breakdown error:", JSON.stringify(error, null, 2));
+    } else {
+      setBreakdownData(data ?? []);
+    }
+    setBreakdownLoading(false);
+  };
+
 
   const totalApplicants = applicantsHiredPerDayData.reduce((sum, d) => sum + d.applicants, 0);
   const totalHired = applicantsHiredPerDayData.reduce((sum, d) => sum + d.hired, 0);
@@ -602,8 +535,8 @@ export default function DashboardJobOrders({ darkMode = false }) {
     labels: analyticsData.map((d) => d.period),
     datasets: [
       {
-        label: "Closed Job Orders",
-        data: analyticsData.map((d) => d.closed),
+        label: "Closed Positions",
+        data: analyticsData.map((d) => d.closed_positions),
         borderColor: "#16a34a",
         backgroundColor: "rgba(22, 163, 74, 0.1)",
         tension: 0.4,
@@ -613,7 +546,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
       },
       {
         label: "Hired Applicants",
-        data: analyticsData.map((d) => d.hired),
+        data: analyticsData.map((d) => d.hired_applicants),
         borderColor: "#eab308",
         backgroundColor: "rgba(234, 179, 8, 0.1)",
         tension: 0.4,
@@ -622,8 +555,8 @@ export default function DashboardJobOrders({ darkMode = false }) {
         pointBackgroundColor: "#eab308",
       },
       {
-        label: "Open Job Orders",
-        data: analyticsData.map((d) => d.open),
+        label: "Open Positions",
+        data: analyticsData.map((d) => d.open_positions),
         borderColor: "#f97316",
         backgroundColor: "rgba(249, 115, 22, 0.1)",
         tension: 0.4,
@@ -783,6 +716,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                 ))}
               </div>
             </div>
+
             <div className="flex items-center space-x-2">
               <label
                 className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}
