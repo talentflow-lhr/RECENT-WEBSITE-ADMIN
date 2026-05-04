@@ -134,6 +134,8 @@ export default function DashboardJobOrders({ darkMode = false }) {
   const [breakdownData, setBreakdownData] = useState<BreakdownRow[]>([]);
   const [breakdownLoading, setBreakdownLoading] = useState(false);
 
+  type SegmentOption = { value: string; label: string };
+  type SegmentOptionsMap = Record<string, SegmentOption[]>;
 
   useEffect(() => {
     fetchStats();
@@ -155,13 +157,24 @@ export default function DashboardJobOrders({ darkMode = false }) {
 
   // Re-fetch breakdown when segment or filters change
   useEffect(() => {
+    console.log('fetching breakdown for:', segmentBy, analyticsFilters);
     if (segmentBy !== "all") fetchBreakdown();
   }, [segmentBy, analyticsFilters]);
 
   // Re-fetch breakdown when segmentBy changes away from "all"
+  // useEffect(() => {
+  //   if (segmentBy !== "all") fetchBreakdown();
+  // }, [segmentBy]);
+
   useEffect(() => {
-    if (segmentBy !== "all") fetchBreakdown();
-  }, [segmentBy]);
+  // Reset all filters to "All" when the segmentation type changes
+  setAnalyticsFilters({
+    company_id: null,
+    category: null,
+    country: null,
+    employee_id: null,
+  });
+}, [segmentBy]);
 
   const fetchStats = async () => {
     const [
@@ -264,12 +277,73 @@ export default function DashboardJobOrders({ darkMode = false }) {
     },
   ];
 
-  const segmentOptions: Record<string, string[]> = {
-    all:     ["All"],
-    pm:      ["All", ...employeeOptions.map(e => e.name)],
-    company: ["All", ...companyOptions.map(c => c.name)],
-    country: ["All", ...countryOptions],
-    skill:   ["All", ...categoryOptions],
+  const segmentOptions: SegmentOptionsMap = {
+    all:     [{ value: "All", label: "All" }],
+    pm:      [
+      { value: "All", label: "All" },
+      ...employeeOptions.map(e => ({
+        value: e.id.toString(),   // employee_id as string (for select value)
+        label: e.name,            // display name
+      })),
+    ],
+    company: [
+      { value: "All", label: "All" },
+      ...companyOptions.map(c => ({
+        value: c.id.toString(),   // company_id as string
+        label: c.name,
+      })),
+    ],
+    country: [
+      { value: "All", label: "All" },
+      ...countryOptions.map(country => ({
+        value: country,
+        label: country,
+      })),
+    ],
+    category:   [
+      { value: "All", label: "All" },
+      ...categoryOptions.map(cat => ({
+        value: cat,
+        label: cat,
+      })),
+    ],
+  };
+
+  const getCurrentFilterValue = (): string => {
+    switch (segmentBy) {
+      case "pm":
+        return analyticsFilters.employee_id?.toString() ?? "All";
+      case "company":
+        return analyticsFilters.company_id?.toString() ?? "All";
+      case "country":
+        return analyticsFilters.country ?? "All";
+      case "category":
+        return analyticsFilters.category ?? "All";
+      default:
+        return "All";
+    }
+  };
+
+  const handleFilterChange = (value: string) => {
+    setAnalyticsFilters(prev => {
+      const next = { ...prev };
+      switch (segmentBy) {
+        case "pm":
+          next.employee_id = value === "All" ? null : Number(value);
+          break;
+        case "company":
+          next.company_id = value === "All" ? null : Number(value);
+          break;
+        case "country":
+          next.country = value === "All" ? null : value;
+          break;
+        case "category":
+          next.category = value === "All" ? null : value;
+          break;
+      }
+      console.log('new filters:', next);
+      return next;
+    });
   };
 
   const getSegmentedData = () => breakdownData.map(row => ({
@@ -735,24 +809,22 @@ export default function DashboardJobOrders({ darkMode = false }) {
                 <option value="pm">Project Manager</option>
                 <option value="company">Company/Employer</option>
                 <option value="country">Country</option>
-                <option value="skill">Related Jobs/Skill</option>
+                <option value="category">Related Jobs/Skill</option>
               </select>
             </div>
             {segmentBy !== "all" && (
               <div className="flex items-center space-x-2">
-                <label
-                  className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}
-                >
+                <label className={`text-sm font-semibold ${darkMode ? "text-gray-300" : "text-gray-700"}`}>
                   Filter:
                 </label>
                 <select
-                  value={selectedSegment}
-                  onChange={(e) => setSelectedSegment(e.target.value)}
+                  value={getCurrentFilterValue()}
+                  onChange={(e) => handleFilterChange(e.target.value)}
                   className={`px-3 py-1.5 text-sm border rounded-lg ${darkMode ? "bg-gray-700 border-gray-600 text-white" : "bg-white border-gray-300 text-gray-900"}`}
                 >
-                  {segmentOptions[segmentBy].map((option) => (
-                    <option key={option} value={option}>
-                      {option}
+                  {segmentOptions[segmentBy].map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
                     </option>
                   ))}
                 </select>
@@ -807,7 +879,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
               {segmentBy === "pm" ? "Project Manager"
                 : segmentBy === "company" ? "Company"
                 : segmentBy === "country" ? "Country"
-                : "Skill"}
+                : "Category"}
             </h3>
             {breakdownLoading ? (
               <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Loading...</p>
@@ -820,7 +892,7 @@ export default function DashboardJobOrders({ darkMode = false }) {
                         {segmentBy === "pm" ? "Project Manager"
                           : segmentBy === "company" ? "Company"
                           : segmentBy === "country" ? "Country"
-                          : "Skill"}
+                          : "Category"}
                       </th>
                       {segmentBy === "company" && (
                         <th className="px-4 py-3 text-left text-sm font-semibold">Project Officer</th>
