@@ -788,103 +788,78 @@ export default function DashboardJobOrders({ darkMode = false }) {
             </div>
           </div>
           <div style={{ height: "350px" }}>
-            <Line data={mainLineChartData} options={chartOptions} />
+            {analyticsLoading ? (
+              <div className="flex items-center justify-center h-full">
+                <span className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                  Loading…
+                </span>
+              </div>
+            ) : (
+              <Line data={mainLineChartData} options={chartOptions} />
+            )}
           </div>
         </div>
 
         {segmentBy !== "all" && (
           <div className="mt-6">
-            <h3
-              className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"} mb-4`}
-            >
+            <h3 className={`text-lg font-bold ${darkMode ? "text-white" : "text-gray-900"} mb-4`}>
               Breakdown by{" "}
-              {segmentBy === "pm"
-                ? "Project Manager"
-                : segmentBy === "company"
-                  ? "Company"
-                  : segmentBy === "country"
-                    ? "Country"
-                    : "Skill"}
+              {segmentBy === "pm" ? "Project Manager"
+                : segmentBy === "company" ? "Company"
+                : segmentBy === "country" ? "Country"
+                : "Skill"}
             </h3>
-            <div className="overflow-x-auto">
-              <table className="w-full">
-                <thead>
-                  <tr className="bg-green-600 text-white">
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      {segmentBy === "pm"
-                        ? "Project Manager"
-                        : segmentBy === "company"
-                          ? "Company"
-                          : segmentBy === "country"
-                            ? "Country"
-                            : "Skill"}
-                    </th>
-                    {segmentBy === "company" && (
+            {breakdownLoading ? (
+              <p className={`text-sm ${darkMode ? "text-gray-400" : "text-gray-500"}`}>Loading...</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="bg-green-600 text-white">
                       <th className="px-4 py-3 text-left text-sm font-semibold">
-                        Project Officer
+                        {segmentBy === "pm" ? "Project Manager"
+                          : segmentBy === "company" ? "Company"
+                          : segmentBy === "country" ? "Country"
+                          : "Skill"}
                       </th>
-                    )}
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Closed
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Hired
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Open
-                    </th>
-                    <th className="px-4 py-3 text-left text-sm font-semibold">
-                      Success Rate
-                    </th>
-                  </tr>
-                </thead>
-                <tbody
-                  className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
-                >
-                  {getSegmentedData().map((item, index) => (
-                    <tr
-                      key={index}
-                      className={
-                        darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"
-                      }
-                    >
-                      <td
-                        className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-900"}`}
-                      >
-                        {item.name}
-                      </td>
                       {segmentBy === "company" && (
-                        <td
-                          className={`px-4 py-3 text-sm ${darkMode ? "text-blue-400" : "text-blue-600"}`}
-                        >
-                          {item.projectOfficer || "—"}
-                        </td>
+                        <th className="px-4 py-3 text-left text-sm font-semibold">Project Officer</th>
                       )}
-                      <td
-                        className={`px-4 py-3 text-sm ${darkMode ? "text-green-400" : "text-green-600"} font-semibold`}
-                      >
-                        {item.closed}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-sm ${darkMode ? "text-yellow-400" : "text-yellow-600"} font-semibold`}
-                      >
-                        {item.hired}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-sm ${darkMode ? "text-orange-400" : "text-orange-600"} font-semibold`}
-                      >
-                        {item.open}
-                      </td>
-                      <td
-                        className={`px-4 py-3 text-sm ${darkMode ? "text-gray-200" : "text-gray-900"} font-semibold`}
-                      >
-                        {item.rate}
-                      </td>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Closed</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Hired</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Open</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold">Success Rate</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}>
+                    {getSegmentedData().map((item, index) => (
+                      <tr key={index} className={darkMode ? "hover:bg-gray-700" : "hover:bg-gray-50"}>
+                        <td className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+                          {item.name}
+                        </td>
+                        {segmentBy === "company" && (
+                          <td className={`px-4 py-3 text-sm ${darkMode ? "text-blue-400" : "text-blue-600"}`}>
+                            {item.projectOfficer || "—"}
+                          </td>
+                        )}
+                        <td className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-green-400" : "text-green-600"}`}>
+                          {item.closed.toLocaleString()}
+                        </td>
+                        <td className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-yellow-400" : "text-yellow-600"}`}>
+                          {item.hired.toLocaleString()}
+                        </td>
+                        <td className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-orange-400" : "text-orange-600"}`}>
+                          {item.open.toLocaleString()}
+                        </td>
+                        <td className={`px-4 py-3 text-sm font-semibold ${darkMode ? "text-gray-200" : "text-gray-900"}`}>
+                          {item.rate}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </div>
