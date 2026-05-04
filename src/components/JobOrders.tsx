@@ -569,6 +569,191 @@ export default function JobOrders({
     0,
   );
 
+  const exportJOToCsv = () => {
+    // Define columns (matching one row per position)
+    const headers = [
+      'Company',
+      'Country',
+      'Created By',
+      'Job Order',
+      'Job Order Active',
+      'Job Order Posted',
+      'Position (Job Title)',
+      'Number of Applicants',
+      'Number of Open Positions',
+      'Number of Shortlisted',
+      'Number of Accepted',
+      'Contract Length',
+      'Deadline',
+    ];
+
+    // Helper to escape CSV fields
+    const escapeCsvField = (field: string | number | null | undefined): string => {
+      if (field === null || field === undefined) return '';
+      const str = String(field);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    const rows: string[][] = [];
+
+    for (const jo of jobOrders) {
+      // If there are no positions you can still export JO‑level info;
+      // here we skip JOs without positions to keep position‑focused output.
+      if (!jo.positions || jo.positions.length === 0) continue;
+
+      for (const pos of jo.positions) {
+        const applicants = pos.applicants || [];
+        const totalApplicants = applicants.length;
+        const acceptedCount = applicants.filter(
+          (a) => a.application_current_status === 'Accepted'
+        ).length;
+        const shortlistedCount = applicants.filter(
+          (a) => a.application_current_status === 'Shortlisted'
+        ).length;
+        // Open positions = needed minus already accepted (never negative)
+        const openPositions = Math.max(0, pos.job_number_needed - acceptedCount);
+
+        rows.push([
+          jo.company_name,
+          jo.jo_country,
+          jo.created_by_name,
+          `JO-${String(jo.jo_id).padStart(5, '0')}`,
+          jo.is_active ? 'Yes' : 'No',
+          jo.is_posted ? 'Yes' : 'No',
+          pos.job_title,
+          totalApplicants,
+          openPositions,
+          shortlistedCount,
+          acceptedCount,
+          pos.job_contract_length,
+          jo.jo_deadline,
+        ]);
+      }
+    }
+
+    // Generate CSV content
+    const csvLines = [
+      headers.map(escapeCsvField).join(','),
+      ...rows.map((row) => row.map(escapeCsvField).join(',')),
+    ];
+    const csvContent = csvLines.join('\n');
+
+    // Create download link
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute(
+      'download',
+      `job_orders_positions_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`
+    );
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportSelectedApplicantsTableToCSV = (
+    companyName: string,
+    deadline?: string,
+    contract?: string,
+    salary?: string
+  ) => {
+    // 1. Access the full applicant list from the currently selected position
+    const allApplicants = selectedPosition?.position.applicants ?? [];
+
+    // 2. Apply search + status filtering (mirrors your inline logic)
+    let filtered = allApplicants.filter((a) => {
+      const fullName =
+        `${a.app_first_name} ${a.app_last_name}`.toLowerCase();
+      const matchesSearch = fullName.includes(
+        applicantSearchTerm.toLowerCase()
+      );
+      const matchesStatus =
+        applicantFilterStatus === 'All' ||
+        a.application_current_status === applicantFilterStatus;
+      return matchesSearch && matchesStatus;
+    });
+
+    // 3. Apply sorting (mirrors your inline logic)
+    if (applicantScoreSort === 'high-to-low') {
+      filtered = [...filtered].sort(
+        (a, b) => b.resume_score - a.resume_score
+      );
+    } else if (applicantScoreSort === 'low-to-high') {
+      filtered = [...filtered].sort(
+        (a, b) => a.resume_score - b.resume_score
+      );
+    }
+
+    // 4. Define CSV headers (with declined/rejected reasons)
+    const headers = [
+      'Name',
+      'Status',
+      'Resume Score',
+      'Job Fit Score',
+      'Applied Date',
+      'Interviewer',
+      'Meeting Link',
+      'Declined Reason',
+      'Rejected Reason',
+      'Resume URL',
+      'Company',
+      'Deadline',
+      'Contract Length',
+      'Salary Range',
+    ];
+
+    // 5. Escape CSV fields
+    const escapeCsv = (val: any): string => {
+      if (val === null || val === undefined) return '';
+      const str = String(val);
+      if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // 6. Build rows
+    const rows = filtered.map((a) => [
+      `${a.app_first_name} ${a.app_last_name}`.trim(),
+      a.application_current_status,
+      a.resume_score?.toFixed(1),
+      a.job_fit_score?.toFixed(1),
+      a.applied_date,
+      a.interviewer ?? '',
+      a.meeting_link ?? '',
+      a.declined_reason ?? '',
+      a.rejected_reason ?? '',
+      a.resume_url ?? '',
+      companyName,
+      deadline ?? '',
+      contract ?? '',
+      salary ?? '',
+    ]);
+
+    // 7. Generate CSV string
+    const csvContent = [
+      headers.map(escapeCsv).join(','),
+      ...rows.map((row) => row.map(escapeCsv).join(',')),
+    ].join('\n');
+
+    // 8. Trigger download
+    const blob = new Blob(['\uFEFF' + csvContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `applicants_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -988,7 +1173,7 @@ export default function JobOrders({
                 <div
                   className={`rounded-lg border overflow-hidden ${darkMode ? "bg-gray-800 border-gray-700" : "bg-white border-gray-200"}`}
                 >
-                  <table className="w-full">
+                  <table className="w-full" id="filtered_applicants_table">
                     <thead
                       className={`sticky top-0 ${darkMode ? "bg-green-900/30" : "bg-green-50"}`}
                     >
@@ -1152,7 +1337,13 @@ export default function JobOrders({
                 </button>
                 {/* TODO: wire up export handler */}
                 <button
-                  onClick={() => alert("Export coming soon.")}
+                  onClick={() => {
+                    const company = selectedPosition.jobOrder.company_name;
+                    const deadline = selectedPosition.jobOrder.jo_deadline;
+                    const contract = selectedPosition.position.job_contract_length;
+                    const salary = selectedPosition.position.job_salary_range;
+                    exportSelectedApplicantsTableToCSV(company, deadline, contract, salary);
+                  }}
                   className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                 >
                   Export Applicants
@@ -2266,7 +2457,10 @@ export default function JobOrders({
           <Plus className="w-5 h-5" />
           <span>Add Job Order</span>
         </button>
-        <button className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+        <button
+            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            onClick={exportJOToCsv}
+        >
           <Download className="w-5 h-5" />
           <span>Export</span>
         </button>
