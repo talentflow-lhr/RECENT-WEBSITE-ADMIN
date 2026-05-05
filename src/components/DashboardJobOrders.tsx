@@ -98,6 +98,19 @@ interface BreakdownRow {
   success_rate:     number;
 }
 
+interface ProjectOfficerRow {
+  employee_id:         number;
+  name:                string;
+  total_jobs:          number;
+  in_progress:         number;
+  total_applicants:    number;
+  accepted_applicants: number;
+  total_needed:        number;
+  completion_rate:     number;   // 0–100, already rounded to 1dp by SQL
+  avg_applicants_day:  number;   // rounded to 2dp by SQL
+  at_risk_jobs:        number;
+}
+
 export default function DashboardJobOrders({ darkMode = false }) {
   const [timePeriod, setTimePeriod] = useState("month");
   const [segmentBy, setSegmentBy] = useState("all");
@@ -137,6 +150,9 @@ export default function DashboardJobOrders({ darkMode = false }) {
   type SegmentOption = { value: string; label: string };
   type SegmentOptionsMap = Record<string, SegmentOption[]>;
 
+  const [officerData, setOfficerData] = useState<ProjectOfficerRow[]>([]);
+  const [officerLoading, setOfficerLoading] = useState(true);
+
   useEffect(() => {
     fetchStats();
     fetchAtRiskJobOrders();
@@ -146,8 +162,9 @@ export default function DashboardJobOrders({ darkMode = false }) {
     fetchApplicantsPositionsData();
     fetchCompanyData();
     fetchApplicantsHiredPerDayData();
-    fetchFilterOptions();    // new
-    fetchMainAnalytics();    // new
+    fetchFilterOptions();
+    fetchMainAnalytics();
+    fetchOfficerPerformance();
   }, []);
 
   // Re-fetch main chart when period or filters change
@@ -355,135 +372,8 @@ export default function DashboardJobOrders({ darkMode = false }) {
     projectOfficer:  undefined,
   }));
 
-  const projectOfficerPerformance = [
-    {
-      name: "MARTINEZ, Jenael S.",
-      totalJobs: 45,
-      completed: 42,
-      inProgress: 3,
-      avgApplicants: 28,
-      completionRate: 93.3,
-      avgDaysToComplete: 22,
-      atRiskJobs: 1,
-    },
-    {
-      name: "PANASANTOS, Emelie Jane",
-      totalJobs: 52,
-      completed: 47,
-      inProgress: 5,
-      avgApplicants: 32,
-      completionRate: 90.4,
-      avgDaysToComplete: 25,
-      atRiskJobs: 2,
-    },
-    {
-      name: "MANING, M. M.",
-      totalJobs: 38,
-      completed: 35,
-      inProgress: 3,
-      avgApplicants: 26,
-      completionRate: 92.1,
-      avgDaysToComplete: 20,
-      atRiskJobs: 1,
-    },
-    {
-      name: "SERVANO, Faith Risen",
-      totalJobs: 41,
-      completed: 37,
-      inProgress: 4,
-      avgApplicants: 30,
-      completionRate: 90.2,
-      avgDaysToComplete: 24,
-      atRiskJobs: 2,
-    },
-    {
-      name: "ILLY, Leny",
-      totalJobs: 33,
-      completed: 30,
-      inProgress: 3,
-      avgApplicants: 24,
-      completionRate: 90.9,
-      avgDaysToComplete: 23,
-      atRiskJobs: 1,
-    },
-    {
-      name: "BALUYOT, Myson F.",
-      totalJobs: 28,
-      completed: 25,
-      inProgress: 3,
-      avgApplicants: 22,
-      completionRate: 89.3,
-      avgDaysToComplete: 26,
-      atRiskJobs: 2,
-    },
-    {
-      name: "GABAYERON, Princess",
-      totalJobs: 35,
-      completed: 31,
-      inProgress: 4,
-      avgApplicants: 25,
-      completionRate: 88.6,
-      avgDaysToComplete: 28,
-      atRiskJobs: 3,
-    },
-    {
-      name: "REYES, Carlos M.",
-      totalJobs: 42,
-      completed: 35,
-      inProgress: 7,
-      avgApplicants: 20,
-      completionRate: 83.3,
-      avgDaysToComplete: 32,
-      atRiskJobs: 4,
-    },
-    {
-      name: "SANTOS, Maria L.",
-      totalJobs: 30,
-      completed: 24,
-      inProgress: 6,
-      avgApplicants: 18,
-      completionRate: 80.0,
-      avgDaysToComplete: 35,
-      atRiskJobs: 5,
-    },
-    {
-      name: "CRUZ, Antonio R.",
-      totalJobs: 25,
-      completed: 19,
-      inProgress: 6,
-      avgApplicants: 16,
-      completionRate: 76.0,
-      avgDaysToComplete: 38,
-      atRiskJobs: 5,
-    },
-    {
-      name: "LOPEZ, Diana S.",
-      totalJobs: 22,
-      completed: 16,
-      inProgress: 6,
-      avgApplicants: 14,
-      completionRate: 72.7,
-      avgDaysToComplete: 42,
-      atRiskJobs: 6,
-    },
-    {
-      name: "GARCIA, Ramon P.",
-      totalJobs: 20,
-      completed: 14,
-      inProgress: 6,
-      avgApplicants: 12,
-      completionRate: 70.0,
-      avgDaysToComplete: 45,
-      atRiskJobs: 6,
-    },
-  ];
-
-  const topPerformers = [...projectOfficerPerformance]
-    .sort((a, b) => b.completionRate - a.completionRate)
-    .slice(0, 10);
-  const atRiskOfficers = [...projectOfficerPerformance]
-    .sort((a, b) => a.completionRate - b.completionRate)
-    .slice(0, 10);
+  const topPerformers  = [...officerData].sort((a, b) => b.completion_rate - a.completion_rate).slice(0, 10);
+  const atRiskOfficers = [...officerData].sort((a, b) => a.completion_rate - b.completion_rate).slice(0, 10);
 
   const fetchOpenPositionsData = async () => {
     const { data, error } = await supabase.rpc("get_open_positions_by_category");
@@ -596,6 +486,16 @@ export default function DashboardJobOrders({ darkMode = false }) {
     setBreakdownLoading(false);
   };
 
+  const fetchOfficerPerformance = async () => {
+    setOfficerLoading(true);
+    const { data, error } = await supabase.rpc("get_project_officer_performance");
+    if (error) {
+      console.error("get_project_officer_performance error:", JSON.stringify(error, null, 2));
+    } else {
+      setOfficerData(data ?? []);
+    }
+    setOfficerLoading(false);
+  };
 
   const totalApplicants = applicantsHiredPerDayData.reduce((sum, d) => sum + d.applicants, 0);
   const totalHired = applicantsHiredPerDayData.reduce((sum, d) => sum + d.hired, 0);
@@ -1214,14 +1114,22 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     Completion %
                   </th>
                   <th className="px-3 py-2 text-center text-xs font-semibold">
-                    Avg Days
+                    Avg App/Day
                   </th>
                 </tr>
               </thead>
               <tbody
                 className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
               >
-                {topPerformers.map((officer, index) => (
+                {
+                  officerLoading ? (
+                    <tr>
+                      <td colSpan={6} className={`px-6 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : (
+                  topPerformers.map((officer, index) => (
                   <tr
                     key={index}
                     className={
@@ -1241,25 +1149,25 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {officer.totalJobs}
+                      {officer.total_jobs}
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-green-400" : "text-green-600"} font-semibold`}
                     >
-                      {officer.completed}
+                      {officer.total_jobs - officer.in_progress}
                     </td>
                     <td
-                      className={`px-3 py-3 text-center text-sm font-bold ${officer.completionRate >= 90 ? (darkMode ? "text-green-400" : "text-green-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
+                      className={`px-3 py-3 text-center text-sm font-bold ${officer.completion_rate >= 90 ? (darkMode ? "text-green-400" : "text-green-600") : darkMode ? "text-yellow-400" : "text-yellow-600"}`}
                     >
-                      {officer.completionRate.toFixed(1)}%
+                      {officer.completion_rate.toFixed(1)}%
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {officer.avgDaysToComplete}
+                      {officer.avg_applicants_day}
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
@@ -1300,14 +1208,22 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     Completion %
                   </th>
                   <th className="px-3 py-2 text-center text-xs font-semibold">
-                    Avg Applicants
+                    Avg App/Day
                   </th>
                 </tr>
               </thead>
               <tbody
                 className={`divide-y ${darkMode ? "divide-gray-700" : "divide-gray-200"}`}
               >
-                {atRiskOfficers.map((officer, index) => (
+                {
+                  officerLoading ? (
+                    <tr>
+                      <td colSpan={6} className={`px-6 py-8 text-center ${darkMode ? "text-gray-400" : "text-gray-500"}`}>
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : (
+                  atRiskOfficers.map((officer, index) => (
                   <tr
                     key={index}
                     className={
@@ -1327,25 +1243,25 @@ export default function DashboardJobOrders({ darkMode = false }) {
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-orange-400" : "text-orange-600"} font-semibold`}
                     >
-                      {officer.inProgress}
+                      {officer.in_progress}
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-red-400" : "text-red-600"} font-bold`}
                     >
-                      {officer.atRiskJobs}
+                      {officer.at_risk_jobs}
                     </td>
                     <td
-                      className={`px-3 py-3 text-center text-sm font-bold ${officer.completionRate < 75 ? (darkMode ? "text-red-400" : "text-red-600") : darkMode ? "text-orange-400" : "text-orange-600"}`}
+                      className={`px-3 py-3 text-center text-sm font-bold ${officer.completion_rate < 75 ? (darkMode ? "text-red-400" : "text-red-600") : darkMode ? "text-orange-400" : "text-orange-600"}`}
                     >
-                      {officer.completionRate.toFixed(1)}%
+                      {officer.completion_rate.toFixed(1)}%
                     </td>
                     <td
                       className={`px-3 py-3 text-center text-sm ${darkMode ? "text-gray-300" : "text-gray-700"}`}
                     >
-                      {officer.avgApplicants}
+                      {officer.avg_applicants_day}
                     </td>
                   </tr>
-                ))}
+                )))}
               </tbody>
             </table>
           </div>
